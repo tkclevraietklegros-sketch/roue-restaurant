@@ -141,7 +141,7 @@ export default function Admin() {
       )}
 
       {onglet === 'codes' && (
-        <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)'}}>
+        <div style={{background:'white',borderRadius:'16px',padding:'12px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',overflowX:'auto'}}>
           <h2 style={{fontSize:'18px',fontWeight:'bold',color:'#1f2937',marginBottom:'16px'}}>Derniers codes</h2>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px'}}>
             <thead>
@@ -169,7 +169,7 @@ export default function Admin() {
                   </td>
                   <td style={{padding:'12px 8px',color:'#6b7280',fontSize:'13px'}}>{new Date(c.cree_le).toLocaleString('fr-FR')}</td>
                   <td style={{padding:'12px 8px'}}>
-                    <button onClick={() => supprimerCode(c.id)} style={{padding:'6px 12px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'13px',fontWeight:'bold'}}>Supprimer</button>
+                   <button onClick={() => supprimerCode(c.id)} style={{padding:'4px 6px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'11px',fontWeight:'bold'}}>Sup</button>
                   </td>
                 </tr>
               ))}
