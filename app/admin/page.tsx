@@ -9,7 +9,7 @@ export default function Admin() {
   const [stats, setStats] = useState({ total: 0, utilises: 0, expires: 0 });
   const [onglet, setOnglet] = useState('stats');
   const [periode, setPeriode] = useState('mois');
-  const [config, setConfig] = useState({ nom: '', couleur_principale: '#f97316' });
+ const [config, setConfig] = useState<any>({ nom: '', couleur_principale: '#f97316' });
   const [confirmation, setConfirmation] = useState('');
   const router = useRouter();
 
