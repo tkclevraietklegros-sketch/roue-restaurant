@@ -71,7 +71,7 @@ export default function Admin() {
   };
 
   return (
-    <div style={{minHeight:'100vh',background:'#f9fafb',padding:'32px'}}>
+    <div style={{minHeight:'100vh',background:'#f9fafb',padding:'16px',maxWidth:'100%',overflowX:'hidden',boxSizing:'border-box'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'24px'}}>
         <h1 style={{fontSize:'24px',fontWeight:'bold',color:'#1f2937'}}>Dashboard Admin</h1>
         <button onClick={() => { document.cookie='admin_auth=; max-age=0'; router.push('/admin/login'); }} style={{background:'#ef4444',color:'white',padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer'}}>Deconnexion</button>
@@ -91,7 +91,7 @@ export default function Admin() {
             <button onClick={() => { setPeriode('mois'); charger('mois'); }} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:periode==='mois'?'#1f2937':'white',color:periode==='mois'?'white':'#6b7280',fontWeight:'bold'}}>Ce mois</button>
             <button onClick={() => { setPeriode('tout'); charger('tout'); }} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:periode==='tout'?'#1f2937':'white',color:periode==='tout'?'white':'#6b7280',fontWeight:'bold'}}>Tout</button>
           </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'16px'}}>
+         <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:'12px'}}>
             <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',textAlign:'center'}}>
               <div style={{fontSize:'28px',marginBottom:'8px'}}>🎯</div>
               <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Total participations</p>
