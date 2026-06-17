@@ -149,21 +149,6 @@ export default function Admin() {
               charger();
             }} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f97316',color:'white',fontWeight:'bold',fontSize:'14px'}}>Ajouter</button>
           </div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:'8px',padding:'16px',background:'#f9fafb',borderRadius:'12px',marginBottom:'16px',alignItems:'center'}}>
-            <input id='newLabel' placeholder='Nom du lot' style={{flex:1,minWidth:'120px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px'}}/>
-            <input id='newCouleur' type='color' defaultValue='#f97316' style={{width:'40px',height:'36px',borderRadius:'8px',border:'1px solid #e5e7eb',cursor:'pointer'}}/>
-            <input id='newProba' type='number' placeholder='Proba' defaultValue='10' style={{width:'70px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',textAlign:'center'}}/>
-            <button onClick={async () => {
-              const label = (document.getElementById('newLabel') as HTMLInputElement).value;
-              const couleur = (document.getElementById('newCouleur') as HTMLInputElement).value;
-              const probabilite = parseInt((document.getElementById('newProba') as HTMLInputElement).value);
-              if (!label) return;
-              await supabase.from('lots').insert({ label, couleur, probabilite, actif: true });
-              setConfirmation('Lot ajoute !');
-              setTimeout(() => setConfirmation(''), 2000);
-              charger();
-            }} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f97316',color:'white',fontWeight:'bold',fontSize:'14px'}}>Ajouter</button>
-          </div>
           {lots.map((lot) => (
             <div key={lot.id} style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:'8px',padding:'12px',borderBottom:'1px solid #f3f4f6'}}>
               <div style={{width:'16px',height:'16px',borderRadius:'50%',background:lot.couleur,flexShrink:0}}></div>
