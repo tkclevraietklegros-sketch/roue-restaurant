@@ -26,6 +26,7 @@ export default function Roue() {
   const [codeGagnant, setCodeGagnant] = useState('');
   const [dejaJoue, setDejaJoue] = useState(false);
   const [chargement, setChargement] = useState(true);
+  const [taille, setTaille] = useState(280);
 
   useEffect(() => {
     const cookie = document.cookie.split(';').find(c => c.trim().startsWith('roue_joue='));
@@ -36,6 +37,13 @@ export default function Roue() {
       setChargement(false);
     };
     chargerLots();
+    const updateTaille = () => {
+      const t = Math.min(window.innerWidth - 48, 320);
+      setTaille(t);
+    };
+    updateTaille();
+    window.addEventListener('resize', updateTaille);
+    return () => window.removeEventListener('resize', updateTaille);
   }, []);
 
   const tourner = async () => {
@@ -68,31 +76,29 @@ export default function Roue() {
     }, 4000);
   };
 
-  const taille = 280;
   const centre = taille / 2;
   const rayon = centre - 10;
   const segments = lots.length;
   const urlValidation = codeGagnant ? 'https://roue-restaurant.vercel.app/valider?code=' + codeGagnant : '';
 
   if (chargement) return (
-    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center'}}>
+    <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#ffedd5 0%,#fef3e2 100%)'}}>
       <p style={{color:'#6b7280'}}>Chargement...</p>
     </div>
   );
 
   return (
-    <div style={{minHeight:'100vh',background:'linear-gradient(to bottom,#fff7ed,#ffffff)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'24px'}}>
-      <h1 style={{fontSize:'24px',fontWeight:'bold',color:'#1f2937',marginBottom:'8px'}}>Tournez la roue !</h1>
-      <p style={{color:'#6b7280',marginBottom:'32px'}}>Tentez de gagner un cadeau</p>
+    <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#ffedd5 0%,#fef3e2 100%)',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'16px',boxSizing:'border-box'}}>
+      <h1 style={{fontSize:'24px',fontWeight:'bold',color:'#1f2937',marginBottom:'4px',textAlign:'center'}}>Tournez la roue !</h1>
+      <p style={{color:'#6b7280',marginBottom:'24px',textAlign:'center'}}>Tentez de gagner un cadeau</p>
       {dejaJoue && !resultat ? (
-        <div style={{background:'white',borderRadius:'24px',boxShadow:'0 10px 40px rgba(0,0,0,0.1)',padding:'32px',textAlign:'center',maxWidth:'320px'}}>
-          <div style={{fontSize:'48px',marginBottom:'16px'}}>⏳</div>
+        <div style={{background:'white',borderRadius:'24px',boxShadow:'0 10px 40px rgba(0,0,0,0.1)',padding:'32px',textAlign:'center',maxWidth:'320px',width:'100%'}}>
           <h2 style={{fontSize:'20px',fontWeight:'bold',color:'#1f2937',marginBottom:'8px'}}>Vous avez deja joue !</h2>
           <p style={{color:'#6b7280'}}>Revenez dans 7 jours pour retenter votre chance</p>
         </div>
       ) : (
-        <div>
-          <div style={{position:'relative',width:taille,height:taille,marginBottom:'32px'}}>
+        <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:'100%',maxWidth:'400px'}}>
+          <div style={{position:'relative',width:taille,height:taille,marginBottom:'24px'}}>
             <svg width={taille} height={taille} style={{transform:'rotate('+rotation+'deg)',transition:tourne?'transform 4s cubic-bezier(0.17,0.67,0.12,0.99)':'none',borderRadius:'50%',boxShadow:'0 10px 40px rgba(0,0,0,0.2)'}}>
               {lots.map((lot, i) => {
                 const angle = (2 * Math.PI) / segments;
@@ -107,35 +113,33 @@ export default function Roue() {
                 return (
                   <g key={i}>
                     <path d={'M'+centre+','+centre+' L'+x1+','+y1+' A'+rayon+','+rayon+' 0 0,1 '+x2+','+y2+' Z'} fill={lot.couleur} stroke='white' strokeWidth='2'/>
-                    <text x={mx} y={my} textAnchor='middle' dominantBaseline='middle' fill='white' fontSize='11' fontWeight='bold' transform={'rotate('+(180/Math.PI)*(start+angle/2+Math.PI/2)+','+mx+','+my+')'}>{lot.label}</text>
+                    <text x={mx} y={my} textAnchor='middle' dominantBaseline='middle' fill='white' fontSize='10' fontWeight='bold' transform={'rotate('+(180/Math.PI)*(start+angle/2+Math.PI/2)+','+mx+','+my+')'}>{lot.label}</text>
                   </g>
                 );
               })}
             </svg>
-            <div style={{position:'absolute',top:'-16px',left:'50%',transform:'translateX(-50%)',fontSize:'32px',zIndex:10}}>▼</div>
+            <div style={{position:'absolute',top:'-16px',left:'50%',transform:'translateX(-50%)',fontSize:'32px',zIndex:10}}>&#9660;</div>
           </div>
           {!resultat ? (
-            <div style={{textAlign:'center'}}>
-              <button onClick={tourner} disabled={tourne} style={{background:'#f97316',color:'white',fontWeight:'bold',padding:'16px 48px',borderRadius:'16px',fontSize:'20px',border:'none',cursor:tourne?'not-allowed':'pointer',opacity:tourne?0.7:1}}>
-                {tourne ? 'En cours...' : 'Tourner !'}
-              </button>
-            </div>
+            <button onClick={tourner} disabled={tourne} style={{background:'#f97316',color:'white',fontWeight:'bold',padding:'16px 48px',borderRadius:'16px',fontSize:'20px',border:'none',cursor:tourne?'not-allowed':'pointer',opacity:tourne?0.7:1,width:'100%',maxWidth:'300px'}}>
+              {tourne ? 'En cours...' : 'Tourner !'}
+            </button>
           ) : resultat && !resultat.label.toLowerCase().includes('tentez') ? (
-            <div style={{background:'white',borderRadius:'24px',boxShadow:'0 10px 40px rgba(0,0,0,0.1)',padding:'32px',textAlign:'center',maxWidth:'320px',width:'100%'}}>
+            <div style={{background:'white',borderRadius:'24px',boxShadow:'0 10px 40px rgba(0,0,0,0.1)',padding:'24px',textAlign:'center',width:'100%'}}>
               <h2 style={{fontSize:'22px',fontWeight:'bold',color:'#1f2937',marginBottom:'8px'}}>Felicitations !</h2>
-              <p style={{fontSize:'20px',color:'#f97316',fontWeight:'bold',marginBottom:'24px'}}>{resultat.label}</p>
+              <p style={{fontSize:'20px',color:'#f97316',fontWeight:'bold',marginBottom:'16px'}}>{resultat.label}</p>
               <div style={{display:'flex',justifyContent:'center',marginBottom:'16px'}}>
-                <QRCodeCanvas value={urlValidation} size={180}/>
+                <QRCodeCanvas value={urlValidation} size={160}/>
               </div>
               <div style={{background:'#fff7ed',borderRadius:'12px',padding:'12px',marginBottom:'8px'}}>
                 <p style={{color:'#6b7280',fontSize:'12px',marginBottom:'4px'}}>Code de secours</p>
                 <p style={{fontSize:'28px',fontWeight:'bold',color:'#f97316',letterSpacing:'6px'}}>{codeGagnant}</p>
               </div>
-              <p style={{color:'#9ca3af',fontSize:'12px',marginBottom:'16px'}}>Code valable 1 heure</p>
+              <p style={{color:'#9ca3af',fontSize:'12px',marginBottom:'8px'}}>Code valable 1 heure</p>
               <p style={{color:'#6b7280',fontSize:'13px'}}>Montrez ce QR code a votre serveur</p>
             </div>
           ) : (
-            <div style={{background:'white',borderRadius:'24px',boxShadow:'0 10px 40px rgba(0,0,0,0.1)',padding:'32px',textAlign:'center',maxWidth:'320px'}}>
+            <div style={{background:'white',borderRadius:'24px',boxShadow:'0 10px 40px rgba(0,0,0,0.1)',padding:'32px',textAlign:'center',width:'100%'}}>
               <h2 style={{fontSize:'22px',fontWeight:'bold',color:'#1f2937',marginBottom:'8px'}}>Dommage !</h2>
               <p style={{color:'#6b7280'}}>Tentez votre chance a votre prochaine visite</p>
             </div>
