@@ -305,7 +305,9 @@ export default function Admin() {
               ctx.fillText(config.nom, 200, 50);
               ctx.font = '18px Arial';
               ctx.fillStyle = '#6b7280';
-              ctx.fillText('Scannez pour gagner un cadeau !', 200, 450);
+              ctx.fillText('Donnez votre avis et tentez de gagner !', 200, 420);
+              ctx.font = '14px Arial';
+              ctx.fillText('En seulement 2 minutes !', 200, 460);
               const qr = document.getElementById('qr-chevalet') as HTMLCanvasElement;
               if (qr) ctx.drawImage(qr, 50, 80, 300, 300);
               const link = document.createElement('a');
