@@ -291,37 +291,9 @@ export default function Admin() {
           <div style={{marginTop:'32px',paddingTop:'24px',borderTop:'1px solid #f3f4f6'}}>
             <label style={{display:'block',color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>QR Code du chevalet</label>
             <p style={{color:'#9ca3af',fontSize:'12px',marginBottom:'16px'}}>Telechargez et imprimez ce QR code a poser sur vos tables</p>
-            <button onClick={() => {
-              const canvas = document.createElement('canvas');
-              canvas.width = 400;
-              canvas.height = 500;
-              const ctx = canvas.getContext('2d');
-              if (!ctx) return;
-              ctx.fillStyle = '#ffffff';
-              ctx.fillRect(0, 0, 400, 500);
-              ctx.fillStyle = '#1f2937';
-              ctx.font = 'bold 24px Arial';
-              ctx.textAlign = 'center';
-              ctx.fillText(config.nom, 200, 50);
-              ctx.font = '18px Arial';
-              ctx.fillStyle = '#6b7280';
-              ctx.fillText('Scannez le QR code !', 200, 400);
-ctx.fillText('Donnez votre avis et tentez de gagner !', 200, 430);
-              ctx.font = '14px Arial';
-              ctx.fillText('En seulement 2 minutes !', 200, 460);
-              const qr = document.getElementById('qr-chevalet') as HTMLCanvasElement;
-              if (qr) ctx.drawImage(qr, 50, 80, 300, 300);
-              const link = document.createElement('a');
-              link.download = 'qr-chevalet.png';
-              link.href = canvas.toDataURL();
-              link.click();
-            }} style={{background:'#1f2937',color:'white',fontWeight:'bold',padding:'12px 24px',borderRadius:'12px',border:'none',cursor:'pointer',fontSize:'16px',marginBottom:'16px'}}>
-              Telecharger QR Code
+           <button onClick={() => window.open('/chevalet', '_blank')} style={{background:'#1f2937',color:'white',fontWeight:'bold',padding:'12px 24px',borderRadius:'12px',border:'none',cursor:'pointer',fontSize:'16px'}}>
+              Voir et imprimer le chevalet
             </button>
-            <div style={{display:'flex',justifyContent:'center',marginTop:'16px'}}>
-              <QRCodeCanvas id='qr-chevalet' value='https://roue-restaurant.vercel.app' size={200}/>
-            </div>
-            <div id='qr-preview' style={{display:'flex',justifyContent:'center',marginTop:'16px'}}></div>
           </div>
         </div>
       )}
