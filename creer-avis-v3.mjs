@@ -1,4 +1,6 @@
-"use client";
+import { writeFileSync } from "fs";
+
+const content = `"use client";
 
 export default function Avis() {
   const ouvrirAvis = () => {
@@ -37,3 +39,7 @@ export default function Avis() {
     </div>
   );
 }
+`;
+
+writeFileSync("app/avis/page.tsx", content, "utf8");
+console.log("OK - app/avis/page.tsx mis a jour");
