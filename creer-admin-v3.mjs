@@ -13,6 +13,7 @@ export default function Admin() {
   const [periode, setPeriode] = useState('mois');
   const [config, setConfig] = useState<any>({ nom: '', couleur_principale: '#f97316' });
   const [confirmation, setConfirmation] = useState('');
+  const [partData, setPartData] = useState<any[]>([]);
   const [newLabel, setNewLabel] = useState('');
   const [newCouleur, setNewCouleur] = useState('#f97316');
   const [newProba, setNewProba] = useState(10);
@@ -47,6 +48,7 @@ export default function Admin() {
       partQuery = partQuery.gte('cree_le', debut.toISOString());
     }
     const { data: partData } = await partQuery;
+    if (partData) setPartData(partData);
     const { data: lotsData } = await supabase.from('lots').select('*').order('probabilite', { ascending: false });
     const { data: configData } = await supabase.from('config').select('*').single();
     if (configData) setConfig(configData);
@@ -141,6 +143,10 @@ export default function Admin() {
               <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Taux utilisation</p>
               <p style={{fontSize:'36px',fontWeight:'bold',color:'#f97316'}}>{stats.total > 0 ? Math.round(stats.utilises / stats.total * 100) : 0}%</p>
             </div>
+          </div>
+      <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',marginTop:'16px'}}>
+            <h3 style={{fontSize:'16px',fontWeight:'bold',color:'#1f2937',marginBottom:'16px'}}>Participations par jour</h3>
+            <GraphiqueBarres partData={partData} />
           </div>
         </div>
       )}
