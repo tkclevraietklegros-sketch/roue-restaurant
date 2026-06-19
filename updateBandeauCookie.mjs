@@ -1,4 +1,6 @@
-"use client";
+import { writeFileSync, mkdirSync } from "fs";
+
+const content = `"use client";
 import { useState } from "react";
 
 export default function BandeauCookie() {
@@ -23,3 +25,8 @@ export default function BandeauCookie() {
     </div>
   );
 }
+`;
+
+mkdirSync("app/components", { recursive: true });
+writeFileSync("app/components/BandeauCookie.tsx", content, "utf8");
+console.log("OK - app/components/BandeauCookie.tsx mis a jour");
