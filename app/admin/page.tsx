@@ -18,6 +18,11 @@ function GraphiqueBarres({ partData }: { partData: any[] }) {
   }).slice(-30);
   const max = Math.max(...jours.map(j => comptesParJour[j]));
   const hauteurMax = 140;
+  const afficherDate = (i: number) => {
+    if (jours.length <= 7) return true;
+    if (jours.length <= 15) return i % 2 === 0;
+    return i % 3 === 0;
+  };
   return (
     <div style={{position:'relative'}}>
       <div style={{display:'flex',alignItems:'flex-end',gap:'0px',height:hauteurMax+'px',borderBottom:'2px solid #f3f4f6',paddingBottom:'0'}}>
@@ -32,10 +37,12 @@ function GraphiqueBarres({ partData }: { partData: any[] }) {
           );
         })}
       </div>
-      <div style={{display:'flex',gap:'4px',marginTop:'4px'}}>
+      <div style={{display:'flex',gap:'0px',marginTop:'4px',height:'32px'}}>
         {jours.map((jour, i) => (
-          <div key={i} style={{flex:1,textAlign:'center'}}>
-            <p style={{color:'#9ca3af',fontSize:'9px'}}>{jour}</p>
+          <div key={i} style={{flex:1,textAlign:'center',overflow:'hidden',position:'relative'}}>
+            {afficherDate(i) && (
+              <p style={{color:'#9ca3af',fontSize:'9px',margin:0,whiteSpace:'nowrap',transform:'rotate(-45deg)',transformOrigin:'top left',marginLeft:'6px',marginTop:'4px',position:'absolute'}}>{jour}</p>
+            )}
           </div>
         ))}
       </div>
@@ -149,14 +156,12 @@ export default function Admin() {
         <h1 style={{fontSize:'24px',fontWeight:'bold',color:'#1f2937'}}>Dashboard Admin</h1>
         <button onClick={() => { document.cookie='admin_auth=; max-age=0'; router.push('/admin/login'); }} style={{background:'#ef4444',color:'white',padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer'}}>Deconnexion</button>
       </div>
-
       <div style={{display:'flex',gap:'8px',marginBottom:'24px'}}>
         <button onClick={() => setOnglet('stats')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='stats'?'#f97316':'white',color:onglet==='stats'?'white':'#6b7280',fontWeight:'bold'}}>Stats</button>
         <button onClick={() => setOnglet('lots')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='lots'?'#f97316':'white',color:onglet==='lots'?'white':'#6b7280',fontWeight:'bold'}}>Lots</button>
         <button onClick={() => setOnglet('codes')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='codes'?'#f97316':'white',color:onglet==='codes'?'white':'#6b7280',fontWeight:'bold'}}>Codes</button>
         <button onClick={() => setOnglet('params')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='params'?'#f97316':'white',color:onglet==='params'?'white':'#6b7280',fontWeight:'bold'}}>Parametres</button>
       </div>
-
       {onglet === 'stats' && (
         <div>
           <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
@@ -182,13 +187,12 @@ export default function Admin() {
               <p style={{fontSize:'36px',fontWeight:'bold',color:'#f97316'}}>{stats.total > 0 ? Math.round(stats.utilises / stats.total * 100) : 0}%</p>
             </div>
           </div>
-      <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',marginTop:'16px'}}>
+          <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',marginTop:'16px'}}>
             <h3 style={{fontSize:'16px',fontWeight:'bold',color:'#1f2937',marginBottom:'16px'}}>Participations par jour</h3>
             <GraphiqueBarres partData={partData} />
           </div>
         </div>
       )}
-
       {onglet === 'lots' && (
         <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)'}}>
           <h2 style={{fontSize:'18px',fontWeight:'bold',color:'#1f2937',marginBottom:'8px'}}>Gestion des lots</h2>
@@ -217,13 +221,12 @@ export default function Admin() {
           ))}
         </div>
       )}
-
       {onglet === 'codes' && (
         <div style={{background:'white',borderRadius:'16px',padding:'12px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',overflowX:'auto'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
             <h2 style={{fontSize:'18px',fontWeight:'bold',color:'#1f2937'}}>Derniers codes</h2>
             <button onClick={async () => { if (!confirm('Supprimer les codes expires ?')) return; const expires = codes.filter(c => c.expire_le && new Date(c.expire_le) < new Date() && !c.utilise); for (const c of expires) { await supabase.from('codes').delete().eq('id', c.id); } charger(); }} style={{padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fef9c3',color:'#ca8a04',fontSize:'13px',fontWeight:'bold'}}>Suppr expires</button>
-              <button onClick={supprimerTout} style={{padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'13px',fontWeight:'bold'}}>Tout supprimer</button>
+            <button onClick={supprimerTout} style={{padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'13px',fontWeight:'bold'}}>Tout supprimer</button>
           </div>
           <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px'}}>
             <thead>
@@ -259,7 +262,6 @@ export default function Admin() {
           </table>
         </div>
       )}
-
       {onglet === 'params' && (
         <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)'}}>
           <h2 style={{fontSize:'18px',fontWeight:'bold',color:'#1f2937',marginBottom:'24px'}}>Parametres du restaurant</h2>
@@ -289,7 +291,7 @@ export default function Admin() {
           <div style={{marginTop:'32px',paddingTop:'24px',borderTop:'1px solid #f3f4f6'}}>
             <label style={{display:'block',color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>QR Code du chevalet</label>
             <p style={{color:'#9ca3af',fontSize:'12px',marginBottom:'16px'}}>Telechargez et imprimez ce QR code a poser sur vos tables</p>
-           <button onClick={() => window.open('/chevalet', '_blank')} style={{background:'#1f2937',color:'white',fontWeight:'bold',padding:'12px 24px',borderRadius:'12px',border:'none',cursor:'pointer',fontSize:'16px'}}>
+            <button onClick={() => window.open('/chevalet', '_blank')} style={{background:'#1f2937',color:'white',fontWeight:'bold',padding:'12px 24px',borderRadius:'12px',border:'none',cursor:'pointer',fontSize:'16px'}}>
               Voir et imprimer le chevalet
             </button>
           </div>
