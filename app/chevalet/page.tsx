@@ -5,7 +5,10 @@ import { supabase } from '../../lib/supabase';
 export default function Chevalet() {
   const [config, setConfig] = useState<any>({ nom: '', couleur_principale: '#f97316' });
   const [lots, setLots] = useState<any[]>([]);
+  const [modeLivraison, setModeLivraison] = useState(false);
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setModeLivraison(params.get('mode') === 'livraison');
     const charger = async () => {
       const { data: configData } = await supabase.from('config').select('*').single();
       if (configData) setConfig(configData);
@@ -14,18 +17,21 @@ export default function Chevalet() {
     };
     charger();
   }, []);
+  const urlQR = modeLivraison ? 'https://spinlyo.vercel.app/roue?mode=livraison' : 'https://spinlyo.vercel.app';
   return (
     <div style={{minHeight:'100vh',background:'#ffffff',display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
       <div style={{width:'340px',background:'white',borderRadius:'24px',boxShadow:'0 20px 60px rgba(0,0,0,0.15)',padding:'40px',textAlign:'center',border:'3px solid '+config.couleur_principale}}>
-        
-        <div style={{fontSize:'48px',marginBottom:'8px'}}>🍽️</div>
+        <div style={{fontSize:'48px',marginBottom:'8px'}}>{modeLivraison ? '🛵' : '🍽️'}</div>
         <h1 style={{fontSize:'28px',fontWeight:'bold',color:config.couleur_principale,margin:'0 0 4px 0'}}>{config.nom}</h1>
         <div style={{width:'60px',height:'3px',background:config.couleur_principale,margin:'12px auto'}}></div>
-        
-        <h2 style={{fontSize:'20px',fontWeight:'bold',color:'#1f2937',marginBottom:'4px'}}>Scannez et gagnez !</h2>
-        <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'20px'}}>Scannez et tentez de remporter un cadeau en 2 minutes</p>
+        <h2 style={{fontSize:'20px',fontWeight:'bold',color:'#1f2937',marginBottom:'4px'}}>
+          {modeLivraison ? 'Un cadeau dans votre commande !' : 'Scannez et gagnez !'}
+        </h2>
+        <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'20px'}}>
+          {modeLivraison ? 'Scannez et tentez de remporter un cadeau a utiliser lors de votre prochaine visite !' : 'Scannez et tentez de remporter un cadeau en 2 minutes'}
+        </p>
         <div style={{display:'flex',justifyContent:'center',marginBottom:'20px'}}>
-          <QRCodeCanvas value='https://spinlyo.vercel.app' size={180} fgColor='#1f2937'/>
+          <QRCodeCanvas value={urlQR} size={180} fgColor='#1f2937'/>
         </div>
         {lots.length > 0 && (
           <div style={{background:'#fff7ed',borderRadius:'12px',padding:'16px',marginBottom:'16px'}}>
@@ -38,7 +44,9 @@ export default function Chevalet() {
             ))}
           </div>
         )}
-        <p style={{color:'#9ca3af',fontSize:'11px'}}>1 participation par visite</p>
+        <p style={{color:'#9ca3af',fontSize:'11px'}}>
+          {modeLivraison ? 'Valable 7 jours — 1 participation par commande' : '1 participation par visite'}
+        </p>
       </div>
       <style>{`
         @media print {
