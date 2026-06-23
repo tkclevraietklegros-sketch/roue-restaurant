@@ -41,10 +41,10 @@ export default function Roue() {
     const p = new URLSearchParams(window.location.search);
     const estLivraison = p.get('mode') === 'livraison';
     setModeLivraison(estLivraison);
-    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('roue_joue_'+slug+'='));
+    const cookie = document.cookie.split(';').find(c => c.trim().startsWith('roue_joue_'+slugActuel+'='));
     if (cookie) setDejaJoue(true);
     const chargerLots = async () => {
-      const { data: restau } = await supabase.from('restaurants').select('id').eq('slug', slug).single();
+      const { data: restau } = await supabase.from('restaurants').select('id').eq('slug', slugActuel).single();
       if (!restau) return;
       setRestaurantId(restau.id);
       const { data } = await supabase.from('lots').select('*').eq('actif', true).eq('restaurant_id', restau.id);
