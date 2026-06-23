@@ -102,7 +102,7 @@ export default function Roue() {
       <p style={{color:'#6b7280'}}>Aucun lot disponible</p>
     </div>
   );
-  const urlValidation = codeGagnant ? 'https://spinlyo.vercel.app/valider?code=' + codeGagnant : '';
+  const urlValidation = codeGagnant ? 'https://spinlyo.vercel.app/'+slugState+'/valider?code=' + codeGagnant : '';
 
   if (chargement) return (
     <div style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',background:'linear-gradient(135deg,#ffedd5 0%,#fef3e2 100%)'}}>
