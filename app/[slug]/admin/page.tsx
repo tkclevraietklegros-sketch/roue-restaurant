@@ -167,7 +167,7 @@ export default function AdminRestaurant() {
     <div style={{minHeight:'100vh',background:'#f9fafb',padding:'16px',maxWidth:'100%',overflowX:'hidden',boxSizing:'border-box'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'24px'}}>
         <h1 style={{fontSize:'24px',fontWeight:'bold',color:'#1f2937'}}>Dashboard {config.nom}</h1>
-        <button onClick={() => { document.cookie='admin_auth_'+slug+'=; max-age=0'; router.push('/'+slug+'/admin/login'); }} style={{background:'#ef4444',color:'white',padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer'}}>Deconnexion</button>
+        <button onClick={() => { document.cookie='admin_auth_'+slug+'=; max-age=0; path=/'; router.push('/'+slug+'/admin/login'); }} style={{background:'#ef4444',color:'white',padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer'}}>Deconnexion</button>
       </div>
       <div style={{display:'flex',gap:'8px',marginBottom:'24px'}}>
         <button onClick={() => setOnglet('stats')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='stats'?'#f97316':'white',color:onglet==='stats'?'white':'#6b7280',fontWeight:'bold'}}>Stats</button>
@@ -265,7 +265,7 @@ export default function AdminRestaurant() {
                       <span style={{background:'#fef9c3',color:'#ca8a04',padding:'4px 8px',borderRadius:'20px',fontSize:'11px'}}>Attente</span>
                     )}
                   </td>
-                  {new Date(c.cree_le + "Z").toLocaleString("fr-FR")}
+                  <td style={{padding:'8px 4px',color:'#6b7280',fontSize:'11px'}}>{new Date(c.cree_le).toLocaleString('fr-FR')}</td>
                   <td style={{padding:'8px 4px'}}>
                     <button onClick={() => supprimerCode(c.id)} style={{padding:'6px 10px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'12px',fontWeight:'bold'}}>Suppr</button>
                   </td>
