@@ -181,7 +181,81 @@ export default function Roue() {
             <button onClick={tourner} disabled={tourne} style={{background:'#f97316',color:'white',fontWeight:'bold',padding:'16px 48px',borderRadius:'16px',fontSize:'20px',border:'none',cursor:tourne?'not-allowed':'pointer',opacity:tourne?0.7:1,width:'100%',maxWidth:'300px'}}>
               {tourne ? 'En cours...' : 'Tourner !'}
             </button>
-          ) : resultat && !resultat.label.toLowerCase().includes('tentez') ? (
+          ) : resultat && resultat.est_roue_bonus ? (
+            <div style={{display:'flex',flexDirection:'column',alignItems:'center',width:'100%'}}>
+              <style>{`@keyframes tremblement { 0%,100%{transform:rotate(var(--r,0deg))} 92%{transform:rotate(calc(var(--r,0deg) + 4deg))} 94%{transform:rotate(calc(var(--r,0deg) - 4deg))} 96%{transform:rotate(calc(var(--r,0deg) + 2deg))} 98%{transform:rotate(calc(var(--r,0deg) - 2deg))} }`}</style>
+              {!resultatBonus ? (
+                <>
+                  <div style={{background:'#fffbeb',border:'2px solid #f59e0b',borderRadius:'16px',padding:'16px',marginBottom:'20px',textAlign:'center',width:'100%'}}>
+                    <p style={{fontSize:'28px',marginBottom:'4px'}}>🎰</p>
+                    <p style={{color:'#92400e',fontWeight:'bold',fontSize:'16px'}}>Roue bonus !</p>
+                    <p style={{color:'#d97706',fontSize:'13px'}}>Une surprise vous attend...</p>
+                  </div>
+                  <div style={{position:'relative',width:taille,height:taille,marginBottom:'16px'}}>
+                    <svg width={taille} height={taille} style={{transform:'rotate('+rotationBonus+'deg)',transition:tourneBonus?'transform 6s cubic-bezier(0.25,0.1,0.1,1)':'none',borderRadius:'50%',boxShadow:'0 10px 40px rgba(245,158,11,0.4)'}}>
+                      {sousLots.map((sl, i) => {
+                        const angle = (2 * Math.PI) / sousLots.length;
+                        const start = i * angle - Math.PI / 2;
+                        const end = start + angle;
+                        const cx = taille/2;
+                        const cy = taille/2;
+                        const r = cx - 10;
+                        const x1 = cx + r * Math.cos(start);
+                        const y1 = cy + r * Math.sin(start);
+                        const x2 = cx + r * Math.cos(end);
+                        const y2 = cy + r * Math.sin(end);
+                        const mx = cx + (r * 0.65) * Math.cos(start + angle / 2);
+                        const my = cy + (r * 0.65) * Math.sin(start + angle / 2);
+                        return (
+                          <g key={i}>
+                            <path d={'M'+cx+','+cy+' L'+x1+','+y1+' A'+r+','+r+' 0 0,1 '+x2+','+y2+' Z'} fill={sl.couleur} stroke='white' strokeWidth='2'/>
+                            <text x={mx} y={my} textAnchor='middle' dominantBaseline='middle' fill='white' fontSize='10' fontWeight='bold' transform={'rotate('+(180/Math.PI)*(start+angle/2+Math.PI/2)+','+mx+','+my+')'}>{sl.label}</text>
+                          </g>
+                        );
+                      })}
+                    </svg>
+                    <div style={{position:'absolute',top:'-16px',left:'50%',transform:'translateX(-50%)',fontSize:'32px',zIndex:10}}>&#9660;</div>
+                  </div>
+                  {tourneBonus && <p style={{color:'#d97706',fontWeight:'bold',fontSize:'16px',animation:'bounce 0.5s infinite'}}>La roue tourne...</p>}
+                </>
+              ) : (
+                <div style={{background:'white',borderRadius:'24px',boxShadow:'0 10px 40px rgba(0,0,0,0.1)',padding:'24px',textAlign:'center',width:'100%'}}>
+                  <h2 style={{fontSize:'22px',fontWeight:'bold',color:'#1f2937',marginBottom:'4px'}}>Felicitations !</h2>
+                  <p style={{fontSize:'14px',color:'#6b7280',marginBottom:'12px'}}>{nomRestaurant} vous offre...</p>
+                  <p style={{fontSize:'24px',color:'#f59e0b',fontWeight:'bold',marginBottom:'16px'}}>{resultatBonus.label}</p>
+                  {modeLivraison ? (
+                    <div>
+                      <div style={{display:'flex',justifyContent:'center',marginBottom:'16px'}}>
+                        <QRCodeCanvas value={urlValidation} size={160}/>
+                      </div>
+                      <div style={{background:'#fffbeb',borderRadius:'12px',padding:'16px',marginBottom:'12px'}}>
+                        <p style={{color:'#6b7280',fontSize:'12px',marginBottom:'4px'}}>Votre code cadeau</p>
+                        <p style={{fontSize:'28px',fontWeight:'bold',color:'#f59e0b',letterSpacing:'6px',marginBottom:'8px'}}>{codeGagnant}</p>
+                        <p style={{color:'#9ca3af',fontSize:'12px'}}>Valable 7 jours</p>
+                      </div>
+                      <div style={{background:'#f0fdf4',borderRadius:'12px',padding:'16px'}}>
+                        <p style={{fontSize:'24px',marginBottom:'4px'}}>📸</p>
+                        <p style={{color:'#16a34a',fontWeight:'bold',fontSize:'14px',marginBottom:'4px'}}>Faites une capture d'ecran !</p>
+                        <p style={{color:'#6b7280',fontSize:'13px'}}>Presentez cette page lors de votre prochaine visite au restaurant pour recuperer votre cadeau.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div style={{display:'flex',justifyContent:'center',marginBottom:'16px'}}>
+                        <QRCodeCanvas value={urlValidation} size={160}/>
+                      </div>
+                      <div style={{background:'#fffbeb',borderRadius:'12px',padding:'12px',marginBottom:'8px'}}>
+                        <p style={{color:'#6b7280',fontSize:'12px',marginBottom:'4px'}}>Code de secours</p>
+                        <p style={{fontSize:'28px',fontWeight:'bold',color:'#f59e0b',letterSpacing:'6px'}}>{codeGagnant}</p>
+                      </div>
+                      <p style={{color:'#9ca3af',fontSize:'12px',marginBottom:'8px'}}>Code valable 1 heure</p>
+                      <p style={{color:'#6b7280',fontSize:'13px'}}>Montrez ce QR code a votre serveur</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : resultat && !resultat.est_perdant ? (
             <div style={{background:'white',borderRadius:'24px',boxShadow:'0 10px 40px rgba(0,0,0,0.1)',padding:'24px',textAlign:'center',width:'100%'}}>
               <h2 style={{fontSize:'22px',fontWeight:'bold',color:'#1f2937',marginBottom:'4px'}}>Felicitations !</h2>
               <p style={{fontSize:'14px',color:'#6b7280',marginBottom:'12px'}}>{nomRestaurant} vous offre...</p>
