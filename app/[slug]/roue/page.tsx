@@ -75,14 +75,12 @@ export default function Roue() {
     setTimeout(async () => {
       setResultat(lot);
       const estGagnant = !lot.est_perdant;
-      await supabase.from('participations').insert({ lot: lot.label, restaurant_id: restaurantId, mode: estLivraison ? 'livraison' : 'restaurant' });
+      await supabase.from('participations').insert({ lot: lot.label, restaurant_id: restaurantId, mode: modeLivraison ? 'livraison' : 'restaurant' });
       if (estGagnant) {
         confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
         const nouveau = genererCode();
         setCodeGagnant(nouveau);
-        const p = new URLSearchParams(window.location.search);
-        const estLivraison = p.get('mode') === 'livraison';
-        const duree = estLivraison ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
+        const duree = modeLivraison ? 7 * 24 * 60 * 60 * 1000 : 60 * 60 * 1000;
         const expiration = new Date(Date.now() + duree);
         await supabase.from('codes').insert({ code: nouveau, lot: lot.label, expire_le: expiration.toISOString(), restaurant_id: restaurantId });
       }
