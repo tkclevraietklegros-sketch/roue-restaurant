@@ -3,6 +3,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
 
+const OPTIONS_FREQUENCE = [
+  { label: '1 client sur 2', probabilite: 50 },
+  { label: '1 client sur 3', probabilite: 33 },
+  { label: '1 client sur 5', probabilite: 20 },
+  { label: '1 client sur 10', probabilite: 10 },
+  { label: '1 client sur 20', probabilite: 5 },
+  { label: '1 client sur 50', probabilite: 2 },
+  { label: '1 client sur 100', probabilite: 1 },
+];
+
 function GraphiqueBarres({ partData }: { partData: any[] }) {
   if (!partData || partData.length === 0) return <p style={{color:'#9ca3af',textAlign:'center',padding:'24px'}}>Pas encore de donnees</p>;
   const comptesParJour: any = {};
@@ -60,7 +70,8 @@ export default function AdminRestaurant() {
   const [partData, setPartData] = useState<any[]>([]);
   const [newLabel, setNewLabel] = useState('');
   const [newCouleur, setNewCouleur] = useState('#f97316');
-  const [newProba, setNewProba] = useState(10);
+  const [newFrequence, setNewFrequence] = useState(10);
+  const [newEstPerdant, setNewEstPerdant] = useState(false);
   const [restaurantId, setRestaurantId] = useState('');
   const [slug, setSlug] = useState('');
   const router = useRouter();
@@ -121,9 +132,12 @@ export default function AdminRestaurant() {
     if (lotsData) setLots(lotsData);
   };
 
-  const modifierProba = async (id: string, valeur: string) => {
-    await supabase.from('lots').update({ probabilite: parseInt(valeur) }).eq('id', id);
-    setConfirmation('Probabilite mise a jour !');
+  const totalProbas = () => lots.filter(l => !l.est_perdant).reduce((a, l) => a + l.probabilite, 0);
+  const probaRestante = () => Math.max(0, 100 - totalProbas());
+
+  const modifierProba = async (id: string, probabilite: number) => {
+    await supabase.from('lots').update({ probabilite }).eq('id', id);
+    setConfirmation('Frequence mise a jour !');
     setTimeout(() => setConfirmation(''), 2000);
     charger(periode, restaurantId);
   };
@@ -142,10 +156,16 @@ export default function AdminRestaurant() {
 
   const ajouterLot = async () => {
     if (!newLabel) return;
-    await supabase.from('lots').insert({ label: newLabel, couleur: newCouleur, probabilite: newProba, actif: true, restaurant_id: restaurantId });
+    if (!newEstPerdant && totalProbas() + newFrequence > 100) {
+      setConfirmation('Total depasse 100% ! Reduisez les autres lots.');
+      setTimeout(() => setConfirmation(''), 3000);
+      return;
+    }
+    await supabase.from('lots').insert({ label: newLabel, couleur: newCouleur, probabilite: newEstPerdant ? 0 : newFrequence, actif: true, restaurant_id: restaurantId, est_perdant: newEstPerdant });
     setNewLabel('');
     setNewCouleur('#f97316');
-    setNewProba(10);
+    setNewFrequence(10);
+    setNewEstPerdant(false);
     setConfirmation('Lot ajoute !');
     setTimeout(() => setConfirmation(''), 2000);
     charger(periode, restaurantId);
@@ -161,6 +181,12 @@ export default function AdminRestaurant() {
     if (!confirm('Supprimer tous les codes ?')) return;
     await supabase.from('codes').delete().eq('restaurant_id', restaurantId);
     charger(periode, restaurantId);
+  };
+
+  const frequenceLabel = (probabilite: number) => {
+    const option = OPTIONS_FREQUENCE.find(o => o.probabilite === probabilite);
+    if (option) return option.label;
+    return '1 client sur ' + Math.round(100 / probabilite);
   };
 
   return (
@@ -209,23 +235,58 @@ export default function AdminRestaurant() {
       {onglet === 'lots' && (
         <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)'}}>
           <h2 style={{fontSize:'18px',fontWeight:'bold',color:'#1f2937',marginBottom:'8px'}}>Gestion des lots</h2>
-          {confirmation && <p style={{color:'#16a34a',fontWeight:'bold',marginBottom:'12px'}}>OK {confirmation}</p>}
-          <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Total probabilites : {lots.reduce((a,l) => a+l.probabilite, 0)}</p>
-          <p style={{color:'#9ca3af',fontSize:'13px',marginBottom:'16px',background:'#f9fafb',padding:'10px',borderRadius:'8px'}}>Info : Les probabilites fonctionnent en pourcentage. Si le total fait 100, chaque chiffre est directement un %. Ex : Cafe = 10 signifie 10% de chance de gagner un cafe.</p>
+          {confirmation && <p style={{color: confirmation.includes('depasse') ? '#dc2626' : '#16a34a',fontWeight:'bold',marginBottom:'12px'}}>{confirmation}</p>}
+          <div style={{background:'#f9fafb',borderRadius:'12px',padding:'12px',marginBottom:'16px'}}>
+            <p style={{color:'#6b7280',fontSize:'13px',margin:'0 0 4px'}}>Chance de gagner un cadeau</p>
+            <p style={{fontSize:'22px',fontWeight:'bold',color: totalProbas() > 100 ? '#dc2626' : '#f97316',margin:'0'}}>{totalProbas()}% <span style={{fontSize:'13px',color:'#9ca3af',fontWeight:'normal'}}>({probaRestante()}% pour "Pas de chance")</span></p>
+          </div>
           <div style={{display:'flex',flexWrap:'wrap',gap:'8px',padding:'16px',background:'#f9fafb',borderRadius:'12px',marginBottom:'16px',alignItems:'center'}}>
             <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder='Nom du lot' style={{flex:1,minWidth:'120px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px'}}/>
             <input type='color' value={newCouleur} onChange={(e) => setNewCouleur(e.target.value)} style={{width:'40px',height:'36px',borderRadius:'8px',border:'1px solid #e5e7eb',cursor:'pointer'}}/>
-            <input type='number' value={newProba} onChange={(e) => setNewProba(parseInt(e.target.value))} style={{width:'70px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',textAlign:'center'}}/>
+            {!newEstPerdant && (
+              <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+                <select value={OPTIONS_FREQUENCE.find(o => o.probabilite === newFrequence) ? newFrequence : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') setNewFrequence(parseInt(e.target.value)); }} style={{padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',background:'white'}}>
+                  {OPTIONS_FREQUENCE.map(o => (
+                    <option key={o.probabilite} value={o.probabilite}>{o.label}</option>
+                  ))}
+                  <option value='custom'>Personnaliser...</option>
+                </select>
+                {!OPTIONS_FREQUENCE.find(o => o.probabilite === newFrequence) && (
+                  <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
+                    <span style={{color:'#6b7280',fontSize:'13px'}}>1 client sur</span>
+                    <input type='number' min='1' max='100' value={Math.round(100/newFrequence)} onChange={(e) => setNewFrequence(Math.round(100/parseInt(e.target.value)))} style={{width:'60px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',textAlign:'center'}}/>
+                  </div>
+                )}
+              </div>
+            )}
+            <label style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'13px',color:'#6b7280',cursor:'pointer'}}>
+              <input type='checkbox' checked={newEstPerdant} onChange={(e) => setNewEstPerdant(e.target.checked)}/>
+              Lot perdant
+            </label>
             <button onClick={ajouterLot} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f97316',color:'white',fontWeight:'bold',fontSize:'14px'}}>Ajouter</button>
           </div>
           {lots.map((lot) => (
-            <div key={lot.id} style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:'8px',padding:'12px',borderBottom:'1px solid #f3f4f6'}}>
+            <div key={lot.id} style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:'8px',padding:'12px',borderBottom:'1px solid #f3f4f6',background: lot.est_perdant ? '#fafafa' : 'white'}}>
               <div style={{width:'16px',height:'16px',borderRadius:'50%',background:lot.couleur,flexShrink:0}}></div>
               <input defaultValue={lot.label} onBlur={(e) => modifierLabel(lot.id, e.target.value)} style={{flex:1,padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px'}}/>
-              <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-                <input type='number' defaultValue={lot.probabilite} onBlur={(e) => modifierProba(lot.id, e.target.value)} style={{width:'60px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',textAlign:'center'}}/>
-                <span style={{color:'#f97316',fontSize:'14px',fontWeight:'bold',minWidth:'40px'}}>{Math.round(lot.probabilite / lots.reduce((a,l) => a+l.probabilite, 0) * 100)}%</span>
-              </div>
+              {lot.est_perdant ? (
+                <span style={{color:'#9ca3af',fontSize:'13px',fontStyle:'italic'}}>Lot perdant</span>
+              ) : (
+                <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                  <select value={OPTIONS_FREQUENCE.find(o => o.probabilite === lot.probabilite) ? lot.probabilite : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') modifierProba(lot.id, parseInt(e.target.value)); }} style={{padding:'6px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'12px',background:'white'}}>
+                    {OPTIONS_FREQUENCE.map(o => (
+                      <option key={o.probabilite} value={o.probabilite}>{o.label}</option>
+                    ))}
+                    <option value='custom'>Personnaliser...</option>
+                  </select>
+                  {!OPTIONS_FREQUENCE.find(o => o.probabilite === lot.probabilite) && (
+                    <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
+                      <span style={{color:'#6b7280',fontSize:'12px'}}>1 sur</span>
+                      <input type='number' min='1' max='100' defaultValue={Math.round(100/lot.probabilite)} onBlur={(e) => modifierProba(lot.id, Math.round(100/parseInt(e.target.value)))} style={{width:'50px',padding:'6px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'12px',textAlign:'center'}}/>
+                    </div>
+                  )}
+                </div>
+              )}
               <button onClick={() => toggleActif(lot.id, lot.actif)} style={{padding:'6px 12px',borderRadius:'8px',border:'none',cursor:'pointer',background:lot.actif?'#dcfce7':'#fee2e2',color:lot.actif?'#16a34a':'#dc2626',fontSize:'13px',fontWeight:'bold'}}>
                 {lot.actif ? 'Actif' : 'Inactif'}
               </button>
@@ -320,7 +381,7 @@ export default function AdminRestaurant() {
           </div>
         </div>
       )}
-    <div style={{textAlign:'center',padding:'24px',marginTop:'16px'}}>
+      <div style={{textAlign:'center',padding:'24px',marginTop:'16px'}}>
         <p style={{color:'#9ca3af',fontSize:'12px'}}>🎡 Spinly — Support : topicrolic@gmail.com</p>
       </div>
     </div>
