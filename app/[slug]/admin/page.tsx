@@ -310,6 +310,70 @@ export default function AdminRestaurant() {
               <p style={{color:'#92400e',fontSize:'13px',margin:'0'}}>🎰 <strong>Roue bonus</strong> — Quand un client tombe sur ce lot, une 2eme roue se declenche. Ideal pour ecouler vos stocks ! Ajoutez les sous-lots apres avoir cree ce lot.</p>
             </div>
           )}
+          {lots.map((lot) => (
+            <div key={lot.id} style={{marginBottom:'8px'}}>
+              <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:'8px',padding:'12px',borderRadius:'12px',border: lot.est_roue_bonus ? '2px solid #f59e0b' : '1px solid #f3f4f6',background: lot.est_perdant ? '#fafafa' : lot.est_roue_bonus ? '#fffbeb' : 'white'}}>
+                <div style={{width:'16px',height:'16px',borderRadius:'50%',background:lot.couleur,flexShrink:0}}></div>
+                {lot.est_roue_bonus && <span style={{background:'#f59e0b',color:'white',fontSize:'11px',fontWeight:'bold',padding:'2px 8px',borderRadius:'20px'}}>🎰 ROUE BONUS</span>}
+                <input defaultValue={lot.label} onBlur={(e) => modifierLabel(lot.id, e.target.value)} style={{flex:1,padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px'}}/>
+                {lot.est_perdant ? (
+                  <span style={{color:'#9ca3af',fontSize:'13px',fontStyle:'italic'}}>Lot perdant</span>
+                ) : lot.est_roue_bonus ? (
+                  <span style={{color:'#d97706',fontSize:'13px',fontWeight:'bold'}}>Roue bonus</span>
+                ) : (
+                  <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                    <select value={OPTIONS_FREQUENCE.find(o => o.probabilite === lot.probabilite) ? lot.probabilite : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') modifierProba(lot.id, parseInt(e.target.value)); }} style={{padding:'6px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'12px',background:'white'}}>
+                      {OPTIONS_FREQUENCE.map(o => (
+                        <option key={o.probabilite} value={o.probabilite}>{o.label}</option>
+                      ))}
+                      <option value='custom'>Personnaliser...</option>
+                    </select>
+                    {!OPTIONS_FREQUENCE.find(o => o.probabilite === lot.probabilite) && (
+                      <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
+                        <span style={{color:'#6b7280',fontSize:'12px'}}>1 sur</span>
+                        <input type='number' min='1' max='100' defaultValue={Math.round(100/lot.probabilite)} onBlur={(e) => modifierProba(lot.id, Math.round(100/parseInt(e.target.value)))} style={{width:'50px',padding:'6px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'12px',textAlign:'center'}}/>
+                      </div>
+                    )}
+                  </div>
+                )}
+                <button onClick={() => toggleActif(lot.id, lot.actif)} style={{padding:'6px 12px',borderRadius:'8px',border:'none',cursor:'pointer',background:lot.actif?'#dcfce7':'#fee2e2',color:lot.actif?'#16a34a':'#dc2626',fontSize:'13px',fontWeight:'bold'}}>
+                  {lot.actif ? 'Actif' : 'Inactif'}
+                </button>
+                {lot.est_roue_bonus && (
+                  <button onClick={() => { if(lotBonusOuvert === lot.id) { setLotBonusOuvert(null); } else { setLotBonusOuvert(lot.id); chargerSousLots(lot.id); } }} style={{padding:'6px 12px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fef3c7',color:'#d97706',fontSize:'13px',fontWeight:'bold'}}>
+                    {lotBonusOuvert === lot.id ? 'Fermer' : 'Sous-lots'}
+                  </button>
+                )}
+                <button onClick={async () => { if (!confirm('Supprimer ce lot ?')) return; await supabase.from('lots').delete().eq('id', lot.id); charger(periode, restaurantId); }} style={{padding:'6px 10px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f3f4f6',color:'#6b7280',fontSize:'13px',fontWeight:'bold'}}>Suppr</button>
+              </div>
+              {lot.est_roue_bonus && lotBonusOuvert === lot.id && (
+                <div style={{background:'#fffbeb',border:'2px solid #f59e0b',borderTop:'none',borderRadius:'0 0 12px 12px',padding:'16px'}}>
+                  <p style={{color:'#92400e',fontSize:'13px',marginBottom:'12px'}}>🎰 Sous-lots de la roue bonus — ajustez les probas selon vos stocks</p>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:'8px',marginBottom:'12px',alignItems:'center'}}>
+                    <input value={newSousLabel} onChange={(e) => setNewSousLabel(e.target.value)} placeholder='Ex: Glace menthe' style={{flex:1,minWidth:'120px',padding:'8px',borderRadius:'8px',border:'1px solid #f59e0b',fontSize:'14px'}}/>
+                    <input type='color' value={newSousCouleur} onChange={(e) => setNewSousCouleur(e.target.value)} style={{width:'40px',height:'36px',borderRadius:'8px',border:'1px solid #e5e7eb',cursor:'pointer'}}/>
+                    <select value={newSousProba} onChange={(e) => setNewSousProba(parseInt(e.target.value))} style={{padding:'8px',borderRadius:'8px',border:'1px solid #f59e0b',fontSize:'14px',background:'white'}}>
+                      {OPTIONS_FREQUENCE.map(o => (
+                        <option key={o.probabilite} value={o.probabilite}>{o.label}</option>
+                      ))}
+                    </select>
+                    <button onClick={() => ajouterSousLot(lot.id)} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f59e0b',color:'white',fontWeight:'bold',fontSize:'14px'}}>Ajouter</button>
+                  </div>
+                  {sousLots.length === 0 && <p style={{color:'#9ca3af',fontSize:'13px'}}>Aucun sous-lot pour l instant</p>}
+                  {sousLots.map((sl) => (
+                    <div key={sl.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'8px',background:'white',borderRadius:'8px',marginBottom:'6px'}}>
+                      <div style={{width:'12px',height:'12px',borderRadius:'50%',background:sl.couleur,flexShrink:0}}></div>
+                      <span style={{flex:1,fontSize:'14px',color:'#1f2937'}}>{sl.label}</span>
+                      <span style={{fontSize:'12px',color:'#d97706'}}>{OPTIONS_FREQUENCE.find(o => o.probabilite === sl.probabilite)?.label || '1 sur '+Math.round(100/sl.probabilite)}</span>
+                      <button onClick={() => supprimerSousLot(sl.id, lot.id)} style={{padding:'4px 8px',borderRadius:'6px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'12px'}}>Suppr</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
       {onglet === 'codes' && (
         <div style={{background:'white',borderRadius:'16px',padding:'12px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',overflowX:'auto'}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
