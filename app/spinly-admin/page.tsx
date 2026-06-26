@@ -33,14 +33,6 @@ export default function SpinlyAdmin() {
     const { data: restaus } = await supabase.from('restaurants').select('*').order('cree_le', { ascending: false });
     if (!restaus) return;
     setRestaurants(restaus);
-    <div style={{background:'#f9fafb',borderRadius:'10px',padding:'12px',marginBottom:'8px',display:'flex',alignItems:'center',gap:'8px'}}>
-              <p style={{color:'#6b7280',fontSize:'12px',margin:'0'}}>🕐 Derniere connexion gerant :</p>
-              <p style={{color: stats[r.id]?.dernierLogin ? '#1f2937' : '#9ca3af',fontSize:'12px',fontWeight:'bold',margin:'0'}}>
-                {stats[r.id]?.dernierLogin ? new Date(stats[r.id].dernierLogin).toLocaleString('fr-FR') : 'Jamais connecte'}
-              </p>
-            </div>
-            <div style={{background:'#f9fafb',borderRadius:'10px',padding:'12px',display:'flex',flexDirection:'column',gap:'6px'}}>
-              <p style={{color:'#6b7280',fontSize:'11px',margin:'0',fontWeight:'bold'}}>LIENS</p>
     setStats(statsMap);
     setChargement(false);
   };
@@ -166,6 +158,12 @@ export default function SpinlyAdmin() {
                 <p style={{color:'#6b7280',fontSize:'12px',margin:'0 0 4px'}}>Cadeaux utilises</p>
                 <p style={{fontSize:'24px',fontWeight:'bold',color:'#16a34a',margin:'0'}}>{stats[r.id]?.codeUtilises || 0}</p>
               </div>
+            </div>
+            <div style={{background:'#f9fafb',borderRadius:'10px',padding:'12px',marginBottom:'8px',display:'flex',alignItems:'center',gap:'8px'}}>
+              <p style={{color:'#6b7280',fontSize:'12px',margin:'0'}}>🕐 Derniere connexion gerant :</p>
+              <p style={{color: stats[r.id]?.dernierLogin ? '#1f2937' : '#9ca3af',fontSize:'12px',fontWeight:'bold',margin:'0'}}>
+                {stats[r.id]?.dernierLogin ? new Date(stats[r.id].dernierLogin).toLocaleString('fr-FR') : 'Jamais connecte'}
+              </p>
             </div>
             <div style={{background:'#f9fafb',borderRadius:'10px',padding:'12px',display:'flex',flexDirection:'column',gap:'6px'}}>
               <p style={{color:'#6b7280',fontSize:'11px',margin:'0',fontWeight:'bold'}}>LIENS</p>
