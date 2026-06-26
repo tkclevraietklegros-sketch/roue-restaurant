@@ -141,8 +141,12 @@ export default function AdminRestaurant() {
     if (lotsData) setLots(lotsData);
   };
 
-  const totalProbas = () => lots.filter(l => !l.est_perdant).reduce((a, l) => a + l.probabilite, 0);
+  const totalProbas = () => lots.filter(l => !l.est_perdant && !l.est_roue_bonus).reduce((a, l) => a + l.probabilite, 0);
   const probaRestante = () => Math.max(0, 100 - totalProbas());
+  const probaParSegmentPerdant = () => {
+    const nb = config.nb_segments_perdants || 1;
+    return Math.floor(probaRestante() / nb);
+  };
 
   const modifierProba = async (id: string, probabilite: number) => {
     await supabase.from('lots').update({ probabilite }).eq('id', id);
@@ -275,7 +279,16 @@ export default function AdminRestaurant() {
           {confirmation && <p style={{color: confirmation.includes('depasse') ? '#dc2626' : '#16a34a',fontWeight:'bold',marginBottom:'12px'}}>{confirmation}</p>}
           <div style={{background:'#f9fafb',borderRadius:'12px',padding:'12px',marginBottom:'16px'}}>
             <p style={{color:'#6b7280',fontSize:'13px',margin:'0 0 4px'}}>Chance de gagner un cadeau</p>
-            <p style={{fontSize:'22px',fontWeight:'bold',color: totalProbas() > 100 ? '#dc2626' : '#f97316',margin:'0'}}>{totalProbas()}% <span style={{fontSize:'13px',color:'#9ca3af',fontWeight:'normal'}}>({probaRestante()}% pour "Pas de chance")</span></p>
+            <p style={{fontSize:'22px',fontWeight:'bold',color: totalProbas() > 100 ? '#dc2626' : '#f97316',margin:'0 0 8px'}}>{totalProbas()}% <span style={{fontSize:'13px',color:'#9ca3af',fontWeight:'normal'}}>({probaRestante()}% pour "Pas de chance")</span></p>
+            <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+              <p style={{color:'#6b7280',fontSize:'13px',margin:'0'}}>Segments perdants sur la roue :</p>
+              <select value={config.nb_segments_perdants || 1} onChange={async (e) => { const val = parseInt(e.target.value); setConfig({...config, nb_segments_perdants: val}); await supabase.from('config').update({ nb_segments_perdants: val }).eq('id', config.id); setConfirmation('Segments mis a jour !'); setTimeout(() => setConfirmation(''), 2000); }} style={{padding:'6px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',background:'white'}}>
+                <option value={1}>1 segment ({probaRestante()}% chacun)</option>
+                <option value={2}>2 segments ({Math.floor(probaRestante()/2)}% chacun)</option>
+                <option value={3}>3 segments ({Math.floor(probaRestante()/3)}% chacun)</option>
+                <option value={4}>4 segments ({Math.floor(probaRestante()/4)}% chacun)</option>
+              </select>
+            </div>
           </div>
           <div style={{display:'flex',flexWrap:'wrap',gap:'8px',padding:'16px',background:'#f9fafb',borderRadius:'12px',marginBottom:'16px',alignItems:'center'}}>
             <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder='Nom du lot' style={{flex:1,minWidth:'120px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px'}}/>
