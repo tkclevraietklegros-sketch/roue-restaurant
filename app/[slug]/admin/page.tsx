@@ -72,6 +72,7 @@ export default function AdminRestaurant() {
   const [newCouleur, setNewCouleur] = useState('#f97316');
   const [newFrequence, setNewFrequence] = useState(10);
   const [newEstPerdant, setNewEstPerdant] = useState(false);
+  const [nbSegmentsPerdants, setNbSegmentsPerdants] = useState(1);
   const [newEstRoueBonus, setNewEstRoueBonus] = useState(false);
   const [sousLots, setSousLots] = useState<any[]>([]);
   const [lotBonusOuvert, setLotBonusOuvert] = useState<string|null>(null);
