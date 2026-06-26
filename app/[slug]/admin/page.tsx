@@ -141,7 +141,7 @@ export default function AdminRestaurant() {
     if (lotsData) setLots(lotsData);
   };
 
-  const totalProbas = () => lots.filter(l => !l.est_perdant && !l.est_roue_bonus).reduce((a, l) => a + l.probabilite, 0);
+  const totalProbas = () => lots.filter(l => !l.est_perdant).reduce((a, l) => a + l.probabilite, 0);
   const probaRestante = () => Math.max(0, 100 - totalProbas());
   const probaParSegmentPerdant = () => {
     const nb = config.nb_segments_perdants || 1;
