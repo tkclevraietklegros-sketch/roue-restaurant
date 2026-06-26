@@ -33,12 +33,14 @@ export default function SpinlyAdmin() {
     const { data: restaus } = await supabase.from('restaurants').select('*').order('cree_le', { ascending: false });
     if (!restaus) return;
     setRestaurants(restaus);
-    const statsMap: any = {};
-    for (const r of restaus) {
-      const { count: participations } = await supabase.from('participations').select('*', { count: 'exact', head: true }).eq('restaurant_id', r.id);
-      const { count: codes } = await supabase.from('codes').select('*', { count: 'exact', head: true }).eq('restaurant_id', r.id).eq('utilise', true);
-      statsMap[r.id] = { participations: participations || 0, codeUtilises: codes || 0 };
-    }
+    <div style={{background:'#f9fafb',borderRadius:'10px',padding:'12px',marginBottom:'8px',display:'flex',alignItems:'center',gap:'8px'}}>
+              <p style={{color:'#6b7280',fontSize:'12px',margin:'0'}}>🕐 Derniere connexion gerant :</p>
+              <p style={{color: stats[r.id]?.dernierLogin ? '#1f2937' : '#9ca3af',fontSize:'12px',fontWeight:'bold',margin:'0'}}>
+                {stats[r.id]?.dernierLogin ? new Date(stats[r.id].dernierLogin).toLocaleString('fr-FR') : 'Jamais connecte'}
+              </p>
+            </div>
+            <div style={{background:'#f9fafb',borderRadius:'10px',padding:'12px',display:'flex',flexDirection:'column',gap:'6px'}}>
+              <p style={{color:'#6b7280',fontSize:'11px',margin:'0',fontWeight:'bold'}}>LIENS</p>
     setStats(statsMap);
     setChargement(false);
   };
