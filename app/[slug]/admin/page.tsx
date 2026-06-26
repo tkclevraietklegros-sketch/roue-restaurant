@@ -294,7 +294,7 @@ export default function AdminRestaurant() {
           <div style={{display:'flex',flexWrap:'wrap',gap:'8px',padding:'16px',background:'#f9fafb',borderRadius:'12px',marginBottom:'16px',alignItems:'center'}}>
             <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder='Nom du lot' style={{flex:1,minWidth:'120px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px'}}/>
             <input type='color' value={newCouleur} onChange={(e) => setNewCouleur(e.target.value)} style={{width:'40px',height:'36px',borderRadius:'8px',border:'1px solid #e5e7eb',cursor:'pointer'}}/>
-            {!newEstPerdant && !newEstRoueBonus && (
+            {!newEstPerdant && (
               <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
                 <select value={OPTIONS_FREQUENCE.find(o => o.probabilite === newFrequence) ? newFrequence : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') setNewFrequence(parseInt(e.target.value)); }} style={{padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',background:'white'}}>
                   {OPTIONS_FREQUENCE.map(o => (
