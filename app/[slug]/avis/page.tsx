@@ -7,12 +7,12 @@ import { motion } from 'framer-motion';
 function Etoiles() {
   const [etoiles, setEtoiles] = useState<any[]>([]);
   useEffect(() => {
-    setEtoiles(Array.from({ length: 40 }, (_, i) => ({
+    setEtoiles(Array.from({ length: 60 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       y: Math.random() * 100,
-      taille: Math.random() * 2.5 + 0.5,
-      duree: Math.random() * 3 + 2,
+      taille: Math.random() * 4 + 1,
+      duree: Math.random() * 3 + 1.5,
       delai: Math.random() * 4,
     })));
   }, []);
@@ -20,7 +20,21 @@ function Etoiles() {
   return (
     <div style={{position:'fixed',inset:0,pointerEvents:'none',zIndex:0}}>
       {etoiles.map(e => (
-        <motion.div key={e.id} style={{position:'absolute',left:e.x+'%',top:e.y+'%',width:e.taille+'px',height:e.taille+'px',borderRadius:'50%',background:'white'}} animate={{opacity:[0,1,0]}} transition={{duration:e.duree,repeat:Infinity,delay:e.delai,ease:'easeInOut'}}/>
+        <motion.div
+          key={e.id}
+          style={{
+            position:'absolute',
+            left:e.x+'%',
+            top:e.y+'%',
+            width:e.taille+'px',
+            height:e.taille+'px',
+            borderRadius:'50%',
+            background:'white',
+            boxShadow:`0 0 ${e.taille*3}px ${e.taille}px rgba(255,255,255,0.8)`
+          }}
+          animate={{opacity:[0,0.3,1,0.3,0],scale:[0.8,1.2,1,1.2,0.8]}}
+          transition={{duration:e.duree,repeat:Infinity,delay:e.delai,ease:'easeInOut'}}
+        />
       ))}
     </div>
   );
