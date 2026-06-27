@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 const OPTIONS_FREQUENCE = [
   { label: '1 client sur 2', probabilite: 50 },
@@ -13,49 +15,40 @@ const OPTIONS_FREQUENCE = [
   { label: '1 client sur 100', probabilite: 1 },
 ];
 
-function GraphiqueBarres({ partData }: { partData: any[] }) {
-  if (!partData || partData.length === 0) return <p style={{color:'#9ca3af',textAlign:'center',padding:'24px'}}>Pas encore de donnees</p>;
+function GraphiqueArea({ partData }: { partData: any[] }) {
+  if (!partData || partData.length === 0) return <p style={{color:'rgba(255,255,255,0.3)',textAlign:'center',padding:'24px'}}>Pas encore de donnees</p>;
   const comptesParJour: any = {};
   partData.forEach(c => {
     const jour = new Date(c.cree_le).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
-    comptesParJour[jour] = (comptesParJour[jour] || 0) + 1;
+    if (!comptesParJour[jour]) comptesParJour[jour] = { jour, restaurant: 0, livraison: 0 };
+    if (c.mode === 'livraison') comptesParJour[jour].livraison++;
+    else comptesParJour[jour].restaurant++;
   });
-  const jours = Object.keys(comptesParJour).sort((a, b) => {
-    const [da, ma] = a.split('/').map(Number);
-    const [db, mb] = b.split('/').map(Number);
+  const data = Object.values(comptesParJour).sort((a: any, b: any) => {
+    const [da, ma] = a.jour.split('/').map(Number);
+    const [db, mb] = b.jour.split('/').map(Number);
     return ma !== mb ? ma - mb : da - db;
   }).slice(-30);
-  const max = Math.max(...jours.map(j => comptesParJour[j]));
-  const hauteurMax = 140;
-  const afficherDate = (i: number) => {
-    if (jours.length <= 7) return true;
-    if (jours.length <= 15) return i % 2 === 0;
-    return i % 3 === 0;
-  };
   return (
-    <div style={{position:'relative'}}>
-      <div style={{display:'flex',alignItems:'flex-end',gap:'0px',height:hauteurMax+'px',borderBottom:'2px solid #f3f4f6',paddingBottom:'0'}}>
-        {jours.map((jour, i) => {
-          const val = comptesParJour[jour];
-          const h = max > 0 ? Math.max((val / max) * hauteurMax, 8) : 8;
-          return (
-            <div key={i} style={{display:'flex',flexDirection:'column',alignItems:'center',flex:1,height:'100%',justifyContent:'flex-end'}}>
-              <span style={{color:'#1f2937',fontSize:'10px',fontWeight:'bold',marginBottom:'2px'}}>{val}</span>
-              <div style={{width:'40%',maxWidth:'40px',background:'linear-gradient(to top,#f97316,#fb923c)',borderRadius:'4px 4px 0 0',height:h+'px'}}></div>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{display:'flex',gap:'0px',marginTop:'6px'}}>
-        {jours.map((jour, i) => (
-          <div key={i} style={{flex:1,textAlign:'center'}}>
-            {afficherDate(i) && (
-              <p style={{color:'#9ca3af',fontSize:'9px',margin:0}}>{jour}</p>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+    <ResponsiveContainer width='100%' height={200}>
+      <AreaChart data={data}>
+        <defs>
+          <linearGradient id='restaurant' x1='0' y1='0' x2='0' y2='1'>
+            <stop offset='5%' stopColor='#f97316' stopOpacity={0.3}/>
+            <stop offset='95%' stopColor='#f97316' stopOpacity={0}/>
+          </linearGradient>
+          <linearGradient id='livraison' x1='0' y1='0' x2='0' y2='1'>
+            <stop offset='5%' stopColor='#4ade80' stopOpacity={0.3}/>
+            <stop offset='95%' stopColor='#4ade80' stopOpacity={0}/>
+          </linearGradient>
+        </defs>
+        <XAxis dataKey='jour' tick={{fill:'rgba(255,255,255,0.3)',fontSize:10}} axisLine={false} tickLine={false}/>
+        <YAxis tick={{fill:'rgba(255,255,255,0.3)',fontSize:10}} axisLine={false} tickLine={false}/>
+        <Tooltip contentStyle={{background:'rgba(15,15,15,0.9)',border:'1px solid rgba(255,255,255,0.1)',borderRadius:'12px',color:'white'}}/>
+        <Area type='monotone' dataKey='restaurant' stroke='#f97316' fill='url(#restaurant)' strokeWidth={2} name='Restaurant'/>
+        <Area type='monotone' dataKey='livraison' stroke='#4ade80' fill='url(#livraison)' strokeWidth={2} name='Livraison'/>
+      </AreaChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -72,7 +65,6 @@ export default function AdminRestaurant() {
   const [newCouleur, setNewCouleur] = useState('#f97316');
   const [newFrequence, setNewFrequence] = useState(10);
   const [newEstPerdant, setNewEstPerdant] = useState(false);
-  const [nbSegmentsPerdants, setNbSegmentsPerdants] = useState(1);
   const [newEstRoueBonus, setNewEstRoueBonus] = useState(false);
   const [sousLots, setSousLots] = useState<any[]>([]);
   const [lotBonusOuvert, setLotBonusOuvert] = useState<string|null>(null);
@@ -87,10 +79,7 @@ export default function AdminRestaurant() {
     const slugActuel = window.location.pathname.split('/')[1];
     setSlug(slugActuel);
     const auth = document.cookie.split(';').find(c => c.trim().startsWith('admin_auth_'+slugActuel+'='));
-    if (!auth) {
-      router.push('/'+slugActuel+'/admin/login');
-      return;
-    }
+    if (!auth) { router.push('/'+slugActuel+'/admin/login'); return; }
     const init = async () => {
       const { data: restau } = await supabase.from('restaurants').select('id').eq('slug', slugActuel).single();
       if (!restau) return;
@@ -103,65 +92,36 @@ export default function AdminRestaurant() {
   const charger = async (p = periode, rid = restaurantId) => {
     if (!rid) return;
     let query = supabase.from('codes').select('*').eq('restaurant_id', rid).order('cree_le', { ascending: false });
-    if (p === 'semaine') {
-      const debut = new Date();
-      debut.setDate(debut.getDate() - 7);
-      query = query.gte('cree_le', debut.toISOString());
-    } else if (p === 'mois') {
-      const debut = new Date();
-      debut.setMonth(debut.getMonth() - 1);
-      query = query.gte('cree_le', debut.toISOString());
-    }
+    if (p === 'semaine') { const d = new Date(); d.setDate(d.getDate()-7); query = query.gte('cree_le', d.toISOString()); }
+    else if (p === 'mois') { const d = new Date(); d.setMonth(d.getMonth()-1); query = query.gte('cree_le', d.toISOString()); }
     const { data: codesData } = await query.limit(50);
     let partQuery = supabase.from('participations').select('*').eq('restaurant_id', rid);
-    if (p === 'semaine') {
-      const debut = new Date();
-      debut.setDate(debut.getDate() - 7);
-      partQuery = partQuery.gte('cree_le', debut.toISOString());
-    } else if (p === 'mois') {
-      const debut = new Date();
-      debut.setMonth(debut.getMonth() - 1);
-      partQuery = partQuery.gte('cree_le', debut.toISOString());
-    }
+    if (p === 'semaine') { const d = new Date(); d.setDate(d.getDate()-7); partQuery = partQuery.gte('cree_le', d.toISOString()); }
+    else if (p === 'mois') { const d = new Date(); d.setMonth(d.getMonth()-1); partQuery = partQuery.gte('cree_le', d.toISOString()); }
     const { data: partData } = await partQuery;
     if (partData) setPartData(partData);
     const { data: lotsData } = await supabase.from('lots').select('*').eq('restaurant_id', rid).order('probabilite', { ascending: false });
     const { data: configData } = await supabase.from('config').select('*').eq('restaurant_id', rid).single();
-    if (configData) {
-      const { mot_de_passe, ...configSansMdp } = configData;
-      setConfig(configSansMdp);
-    }
+    if (configData) { const { mot_de_passe, ...rest } = configData; setConfig(rest); }
     if (codesData) {
       setCodes(codesData);
-      setStats({
-        total: partData ? partData.length : 0,
-        restaurant: partData ? partData.filter(p => p.mode === 'restaurant').length : 0,
-        livraison: partData ? partData.filter(p => p.mode === 'livraison').length : 0,
-        utilises: codesData.filter(c => c.utilise).length,
-        expires: codesData.filter(c => c.expire_le && new Date(c.expire_le) < new Date()).length,
-      });
+      setStats({ total: partData?.length || 0, restaurant: partData?.filter(p => p.mode==='restaurant').length || 0, livraison: partData?.filter(p => p.mode==='livraison').length || 0, utilises: codesData.filter(c => c.utilise).length, expires: codesData.filter(c => c.expire_le && new Date(c.expire_le) < new Date()).length });
     }
     if (lotsData) setLots(lotsData);
   };
 
   const totalProbas = () => lots.filter(l => !l.est_perdant).reduce((a, l) => a + l.probabilite, 0);
   const probaRestante = () => Math.max(0, 100 - totalProbas());
-  const probaParSegmentPerdant = () => {
-    const nb = config.nb_segments_perdants || 1;
-    return Math.floor(probaRestante() / nb);
-  };
 
   const modifierProba = async (id: string, probabilite: number) => {
     await supabase.from('lots').update({ probabilite }).eq('id', id);
-    setConfirmation('Frequence mise a jour !');
-    setTimeout(() => setConfirmation(''), 2000);
+    setConfirmation('Frequence mise a jour !'); setTimeout(() => setConfirmation(''), 2000);
     charger(periode, restaurantId);
   };
 
   const modifierLabel = async (id: string, valeur: string) => {
     await supabase.from('lots').update({ label: valeur }).eq('id', id);
-    setConfirmation('Nom mis a jour !');
-    setTimeout(() => setConfirmation(''), 2000);
+    setConfirmation('Nom mis a jour !'); setTimeout(() => setConfirmation(''), 2000);
     charger(periode, restaurantId);
   };
 
@@ -172,348 +132,316 @@ export default function AdminRestaurant() {
 
   const ajouterLot = async () => {
     if (!newLabel) return;
-    if (!newEstPerdant && !newEstRoueBonus && totalProbas() + newFrequence > 100) {
-      setConfirmation('Total depasse 100% ! Reduisez les autres lots.');
-      setTimeout(() => setConfirmation(''), 3000);
-      return;
-    }
+    if (!newEstPerdant && !newEstRoueBonus && totalProbas() + newFrequence > 100) { setConfirmation('Total depasse 100% !'); setTimeout(() => setConfirmation(''), 3000); return; }
     await supabase.from('lots').insert({ label: newLabel, couleur: newCouleur, probabilite: newEstPerdant ? 0 : newFrequence, actif: true, restaurant_id: restaurantId, est_perdant: newEstPerdant, est_roue_bonus: newEstRoueBonus });
-    setNewLabel('');
-    setNewCouleur('#f97316');
-    setNewFrequence(10);
-    setNewEstPerdant(false);
-    setNewEstRoueBonus(false);
-    setConfirmation('Lot ajoute !');
-    setTimeout(() => setConfirmation(''), 2000);
+    setNewLabel(''); setNewCouleur('#f97316'); setNewFrequence(10); setNewEstPerdant(false); setNewEstRoueBonus(false);
+    setConfirmation('Lot ajoute !'); setTimeout(() => setConfirmation(''), 2000);
     charger(periode, restaurantId);
   };
 
-  const chargerSousLots = async (lotId: string) => {
-    const { data } = await supabase.from('sous_lots').select('*').eq('lot_id', lotId);
-    if (data) setSousLots(data);
-  };
-
+  const chargerSousLots = async (lotId: string) => { const { data } = await supabase.from('sous_lots').select('*').eq('lot_id', lotId); if (data) setSousLots(data); };
   const ajouterSousLot = async (lotId: string) => {
     if (!newSousLabel) return;
     await supabase.from('sous_lots').insert({ label: newSousLabel, couleur: newSousCouleur, probabilite: newSousProba, actif: true, lot_id: lotId, restaurant_id: restaurantId });
-    setNewSousLabel('');
-    setNewSousCouleur('#8b5cf6');
-    setNewSousProba(33);
+    setNewSousLabel(''); setNewSousCouleur('#8b5cf6'); setNewSousProba(33);
     chargerSousLots(lotId);
   };
+  const supprimerSousLot = async (id: string, lotId: string) => { await supabase.from('sous_lots').delete().eq('id', id); chargerSousLots(lotId); };
+  const supprimerCode = async (id: string) => { if (!confirm('Supprimer ce code ?')) return; await supabase.from('codes').delete().eq('id', id); charger(periode, restaurantId); };
+  const supprimerTout = async () => { if (!confirm('Supprimer tous les codes ?')) return; await supabase.from('codes').delete().eq('restaurant_id', restaurantId); charger(periode, restaurantId); };
 
-  const supprimerSousLot = async (id: string, lotId: string) => {
-    await supabase.from('sous_lots').delete().eq('id', id);
-    chargerSousLots(lotId);
-  };
+  const pieData = [
+    { name: 'Restaurant', value: stats.restaurant, color: '#f97316' },
+    { name: 'Livraison', value: stats.livraison, color: '#4ade80' },
+  ].filter(d => d.value > 0);
 
-  const supprimerCode = async (id: string) => {
-    if (!confirm('Supprimer ce code ?')) return;
-    await supabase.from('codes').delete().eq('id', id);
-    charger(periode, restaurantId);
-  };
-
-  const supprimerTout = async () => {
-    if (!confirm('Supprimer tous les codes ?')) return;
-    await supabase.from('codes').delete().eq('restaurant_id', restaurantId);
-    charger(periode, restaurantId);
-  };
-
-  const frequenceLabel = (probabilite: number) => {
-    const option = OPTIONS_FREQUENCE.find(o => o.probabilite === probabilite);
-    if (option) return option.label;
-    return '1 client sur ' + Math.round(100 / probabilite);
-  };
+  const cardStyle: any = { background:'rgba(255,255,255,0.06)', backdropFilter:'blur(20px)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'20px', padding:'20px', textAlign:'center' as const };
 
   return (
-    <div style={{minHeight:'100vh',background:'#f9fafb',padding:'16px',maxWidth:'100%',overflowX:'hidden',boxSizing:'border-box'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'24px'}}>
-        <h1 style={{fontSize:'24px',fontWeight:'bold',color:'#1f2937'}}>Dashboard {config.nom}</h1>
-        <button onClick={() => { document.cookie='admin_auth_'+slug+'=; max-age=0; path=/'; router.push('/'+slug+'/admin/login'); }} style={{background:'#ef4444',color:'white',padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer'}}>Deconnexion</button>
-      </div>
-      <div style={{display:'flex',gap:'8px',marginBottom:'24px'}}>
-        <button onClick={() => setOnglet('stats')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='stats'?'#f97316':'white',color:onglet==='stats'?'white':'#6b7280',fontWeight:'bold'}}>Stats</button>
-        <button onClick={() => setOnglet('lots')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='lots'?'#f97316':'white',color:onglet==='lots'?'white':'#6b7280',fontWeight:'bold'}}>Lots</button>
-        <button onClick={() => setOnglet('codes')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='codes'?'#f97316':'white',color:onglet==='codes'?'white':'#6b7280',fontWeight:'bold'}}>Codes</button>
-        <button onClick={() => setOnglet('params')} style={{padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',background:onglet==='params'?'#f97316':'white',color:onglet==='params'?'white':'#6b7280',fontWeight:'bold'}}>Parametres</button>
-      </div>
-      {onglet === 'stats' && (
+    <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#0f0f0f 0%,#1a1a2e 50%,#16213e 100%)',padding:'16px',maxWidth:'100%',overflowX:'hidden',boxSizing:'border-box'}}>
+      <div style={{position:'fixed',top:'-100px',left:'-100px',width:'400px',height:'400px',background:'radial-gradient(circle,rgba(249,115,22,0.06) 0%,transparent 70%)',pointerEvents:'none',zIndex:0}}/>
+
+      <motion.div initial={{opacity:0,y:-20}} animate={{opacity:1,y:0}} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'24px',position:'relative',zIndex:1}}>
         <div>
-          <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
-            <button onClick={() => { setPeriode('semaine'); charger('semaine', restaurantId); }} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:periode==='semaine'?'#1f2937':'white',color:periode==='semaine'?'white':'#6b7280',fontWeight:'bold'}}>Cette semaine</button>
-            <button onClick={() => { setPeriode('mois'); charger('mois', restaurantId); }} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:periode==='mois'?'#1f2937':'white',color:periode==='mois'?'white':'#6b7280',fontWeight:'bold'}}>Ce mois</button>
-            <button onClick={() => { setPeriode('tout'); charger('tout', restaurantId); }} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:periode==='tout'?'#1f2937':'white',color:periode==='tout'?'white':'#6b7280',fontWeight:'bold'}}>Tout</button>
-          </div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'12px'}}>
-            <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',textAlign:'center'}}>
-              <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Total participations</p>
-              <p style={{fontSize:'36px',fontWeight:'bold',color:'#1f2937'}}>{stats.total}</p>
-            </div>
-            <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',textAlign:'center'}}>
-              <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>🍽️ Restaurant</p>
-              <p style={{fontSize:'36px',fontWeight:'bold',color:'#f97316'}}>{stats.restaurant}</p>
-            </div>
-            <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',textAlign:'center'}}>
-              <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>🛵 Livraison</p>
-              <p style={{fontSize:'36px',fontWeight:'bold',color:'#16a34a'}}>{stats.livraison}</p>
-            </div>
-            <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',textAlign:'center'}}>
-              <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Cadeaux utilises</p>
-              <p style={{fontSize:'36px',fontWeight:'bold',color:'#16a34a'}}>{stats.utilises}</p>
-            </div>
-            <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',textAlign:'center'}}>
-              <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Codes expires</p>
-              <p style={{fontSize:'36px',fontWeight:'bold',color:'#dc2626'}}>{stats.expires}</p>
-            </div>
-            <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',textAlign:'center'}}>
-              <p style={{color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Taux utilisation</p>
-              <p style={{fontSize:'36px',fontWeight:'bold',color:'#f97316'}}>{stats.total > 0 ? Math.round(stats.utilises / stats.total * 100) : 0}%</p>
-            </div>
-          </div>
-          <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',marginTop:'16px'}}>
-            <h3 style={{fontSize:'16px',fontWeight:'bold',color:'#1f2937',marginBottom:'16px'}}>Participations par jour</h3>
-            <GraphiqueBarres partData={partData} />
-          </div>
+          <h1 style={{fontSize:'22px',fontWeight:'800',color:'white',margin:'0',letterSpacing:'-0.3px'}}>Dashboard</h1>
+          <p style={{color:'#f97316',fontSize:'14px',margin:'2px 0 0',fontWeight:'bold'}}>{config.nom}</p>
         </div>
-      )}
-      {onglet === 'lots' && (
-        <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)'}}>
-          <h2 style={{fontSize:'18px',fontWeight:'bold',color:'#1f2937',marginBottom:'8px'}}>Gestion des lots</h2>
-          {confirmation && <p style={{color: confirmation.includes('depasse') ? '#dc2626' : '#16a34a',fontWeight:'bold',marginBottom:'12px'}}>{confirmation}</p>}
-          <div style={{background:'#f9fafb',borderRadius:'12px',padding:'12px',marginBottom:'16px'}}>
-            <p style={{color:'#6b7280',fontSize:'13px',margin:'0 0 4px'}}>Chance de gagner un cadeau</p>
-            <p style={{fontSize:'22px',fontWeight:'bold',color: totalProbas() > 100 ? '#dc2626' : '#f97316',margin:'0 4px'}}>{totalProbas()}% <span style={{fontSize:'13px',color:'#9ca3af',fontWeight:'normal'}}>({probaRestante()}% pour "Pas de chance")</span></p>
-            <p style={{fontSize:'13px',color:'#6b7280',margin:'0 0 8px'}}>soit environ {totalProbas() > 0 ? Math.round(totalProbas()/10) : '?'} client{Math.round(totalProbas()/10) > 1 ? 's' : ''} sur 10 gagnent un cadeau</p>
-            <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
-              <p style={{color:'#6b7280',fontSize:'13px',margin:'0'}}>Nombre de cases "Pas de chance" sur la roue :</p>
-              <select value={config.nb_segments_perdants || 1} onChange={async (e) => { const val = parseInt(e.target.value); setConfig({...config, nb_segments_perdants: val}); await supabase.from('config').update({ nb_segments_perdants: val }).eq('id', config.id); setConfirmation('Segments mis a jour !'); setTimeout(() => setConfirmation(''), 2000); }} style={{padding:'6px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',background:'white'}}>
-                <option value={1}>1 case perdante ({probaRestante()}% de perdre)</option>
-                <option value={2}>2 cases perdantes ({Math.floor(probaRestante()/2)}% chacune)</option>
-                <option value={3}>3 cases perdantes ({Math.floor(probaRestante()/3)}% chacune)</option>
-                <option value={4}>4 cases perdantes ({Math.floor(probaRestante()/4)}% chacune)</option>
-              </select>
-            </div>
-          </div>
-          <div style={{display:'flex',flexWrap:'wrap',gap:'8px',padding:'16px',background:'#f9fafb',borderRadius:'12px',marginBottom:'16px',alignItems:'center'}}>
-            <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder='Nom du lot' style={{flex:1,minWidth:'120px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px'}}/>
-            <input type='color' value={newCouleur} onChange={(e) => setNewCouleur(e.target.value)} style={{width:'40px',height:'36px',borderRadius:'8px',border:'1px solid #e5e7eb',cursor:'pointer'}}/>
-            {!newEstPerdant && (
-              <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
-                <select value={OPTIONS_FREQUENCE.find(o => o.probabilite === newFrequence) ? newFrequence : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') setNewFrequence(parseInt(e.target.value)); }} style={{padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',background:'white'}}>
-                  {OPTIONS_FREQUENCE.map(o => (
-                    <option key={o.probabilite} value={o.probabilite}>{o.label}</option>
-                  ))}
-                  <option value='custom'>Personnaliser...</option>
-                </select>
-                {!OPTIONS_FREQUENCE.find(o => o.probabilite === newFrequence) && (
-                  <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
-                    <span style={{color:'#6b7280',fontSize:'13px'}}>1 client sur</span>
-                    <input type='number' min='1' max='100' value={Math.round(100/newFrequence)} onChange={(e) => setNewFrequence(Math.round(100/parseInt(e.target.value)))} style={{width:'60px',padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px',textAlign:'center'}}/>
-                  </div>
-                )}
-              </div>
-            )}
-            <label style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'13px',color:'#d97706',cursor:'pointer',fontWeight:'bold'}}>
-              <input type='checkbox' checked={newEstRoueBonus} onChange={(e) => { setNewEstRoueBonus(e.target.checked); if(e.target.checked) setNewEstPerdant(false); }}/>
-              🎰 Roue bonus
-            </label>
-            <button onClick={ajouterLot} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f97316',color:'white',fontWeight:'bold',fontSize:'14px'}}>Ajouter</button>
-          </div>
-          {newEstRoueBonus && (
-            <div style={{background:'#fffbeb',border:'2px solid #f59e0b',borderRadius:'12px',padding:'16px',marginBottom:'16px'}}>
-              <p style={{color:'#92400e',fontSize:'13px',margin:'0'}}>🎰 <strong>Roue bonus</strong> — Quand un client tombe sur ce lot, une 2eme roue se declenche. Ideal pour ecouler vos stocks ! Ajoutez les sous-lots apres avoir cree ce lot.</p>
-            </div>
-          )}
-          {lots.map((lot) => (
-            <div key={lot.id} style={{marginBottom:'8px'}}>
-              <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:'8px',padding:'12px',borderRadius:'12px',border: lot.est_roue_bonus ? '2px solid #f59e0b' : '1px solid #f3f4f6',background: lot.est_perdant ? '#fafafa' : lot.est_roue_bonus ? '#fffbeb' : 'white'}}>
-                <div style={{width:'16px',height:'16px',borderRadius:'50%',background:lot.couleur,flexShrink:0}}></div>
-                {lot.est_roue_bonus && <span style={{background:'#f59e0b',color:'white',fontSize:'11px',fontWeight:'bold',padding:'2px 8px',borderRadius:'20px'}}>🎰 ROUE BONUS</span>}
-                <input defaultValue={lot.label} onBlur={(e) => modifierLabel(lot.id, e.target.value)} style={{flex:1,padding:'8px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'14px'}}/>
-                {lot.est_perdant ? (
-                  <span style={{color:'#9ca3af',fontSize:'13px',fontStyle:'italic'}}>Lot perdant</span>
-                ) : lot.est_roue_bonus ? (
-                  <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
-                    <select value={OPTIONS_FREQUENCE.find(o => o.probabilite === lot.probabilite) ? lot.probabilite : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') modifierProba(lot.id, parseInt(e.target.value)); }} style={{padding:'6px',borderRadius:'8px',border:'1px solid #f59e0b',fontSize:'12px',background:'white'}}>
-                      {OPTIONS_FREQUENCE.map(o => (
-                        <option key={o.probabilite} value={o.probabilite}>{o.label}</option>
-                      ))}
-                      <option value='custom'>Personnaliser...</option>
-                    </select>
-                    <span style={{color:'#d97706',fontSize:'12px',fontWeight:'bold'}}>{lot.probabilite}%</span>
-                    {!OPTIONS_FREQUENCE.find(o => o.probabilite === lot.probabilite) && (
-                      <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
-                        <span style={{color:'#6b7280',fontSize:'12px'}}>1 sur</span>
-                        <input type='number' min='1' max='100' defaultValue={Math.round(100/lot.probabilite)} onBlur={(e) => modifierProba(lot.id, Math.round(100/parseInt(e.target.value)))} style={{width:'50px',padding:'6px',borderRadius:'8px',border:'1px solid #f59e0b',fontSize:'12px',textAlign:'center'}}/>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
-                    <select value={OPTIONS_FREQUENCE.find(o => o.probabilite === lot.probabilite) ? lot.probabilite : 'custom'} onChange={(e) => { if (e.target.value !== 'custom') modifierProba(lot.id, parseInt(e.target.value)); }} style={{padding:'6px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'12px',background:'white'}}>
-                      {OPTIONS_FREQUENCE.map(o => (
-                        <option key={o.probabilite} value={o.probabilite}>{o.label}</option>
-                      ))}
-                      <option value='custom'>Personnaliser...</option>
-                    </select>
-                    <span style={{color:'#f97316',fontSize:'12px',fontWeight:'bold'}}>{lot.probabilite}%</span>
-                    {!OPTIONS_FREQUENCE.find(o => o.probabilite === lot.probabilite) && (
-                      <div style={{display:'flex',alignItems:'center',gap:'4px'}}>
-                        <span style={{color:'#6b7280',fontSize:'12px'}}>1 sur</span>
-                        <input type='number' min='1' max='100' defaultValue={Math.round(100/lot.probabilite)} onBlur={(e) => modifierProba(lot.id, Math.round(100/parseInt(e.target.value)))} style={{width:'50px',padding:'6px',borderRadius:'8px',border:'1px solid #e5e7eb',fontSize:'12px',textAlign:'center'}}/>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <button onClick={() => toggleActif(lot.id, lot.actif)} style={{padding:'6px 12px',borderRadius:'8px',border:'none',cursor:'pointer',background:lot.actif?'#dcfce7':'#fee2e2',color:lot.actif?'#16a34a':'#dc2626',fontSize:'13px',fontWeight:'bold'}}>
-                  {lot.actif ? 'Actif' : 'Inactif'}
+        <button onClick={() => { document.cookie='admin_auth_'+slug+'=; max-age=0; path=/'; router.push('/'+slug+'/admin/login'); }} style={{background:'rgba(239,68,68,0.15)',color:'#f87171',padding:'8px 16px',borderRadius:'10px',border:'1px solid rgba(239,68,68,0.3)',cursor:'pointer',fontWeight:'bold',fontSize:'14px'}}>
+          Deconnexion
+        </button>
+      </motion.div>
+
+      <div style={{display:'flex',gap:'6px',marginBottom:'20px',position:'relative',zIndex:1}}>
+        {['stats','lots','codes','params'].map(o => (
+          <motion.button key={o} onClick={() => setOnglet(o)} whileTap={{scale:0.95}} style={{padding:'10px 16px',borderRadius:'12px',border:'none',cursor:'pointer',background:onglet===o?'linear-gradient(135deg,#f97316,#ea580c)':'rgba(255,255,255,0.06)',color:'white',fontWeight:'bold',fontSize:'13px',flex:1,backdropFilter:'blur(10px)'}}>
+            {o.charAt(0).toUpperCase()+o.slice(1)}
+          </motion.button>
+        ))}
+      </div>
+
+      <AnimatePresence mode='wait'>
+        {onglet === 'stats' && (
+          <motion.div key='stats' initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:20}}>
+            <div style={{display:'flex',gap:'6px',marginBottom:'16px'}}>
+              {[['semaine','Semaine'],['mois','Mois'],['tout','Tout']].map(([val,label]) => (
+                <button key={val} onClick={() => { setPeriode(val); charger(val, restaurantId); }} style={{padding:'8px 14px',borderRadius:'10px',border:'none',cursor:'pointer',background:periode===val?'rgba(255,255,255,0.15)':'rgba(255,255,255,0.05)',color:periode===val?'white':'rgba(255,255,255,0.4)',fontWeight:'bold',fontSize:'13px',flex:1}}>
+                  {label}
                 </button>
-                {lot.est_roue_bonus && (
-                  <button onClick={() => { if(lotBonusOuvert === lot.id) { setLotBonusOuvert(null); } else { setLotBonusOuvert(lot.id); chargerSousLots(lot.id); } }} style={{padding:'6px 12px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fef3c7',color:'#d97706',fontSize:'13px',fontWeight:'bold'}}>
-                    {lotBonusOuvert === lot.id ? 'Fermer' : 'Sous-lots'}
-                  </button>
-                )}
-                <button onClick={async () => { if (!confirm('Supprimer ce lot ?')) return; await supabase.from('lots').delete().eq('id', lot.id); charger(periode, restaurantId); }} style={{padding:'6px 10px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f3f4f6',color:'#6b7280',fontSize:'13px',fontWeight:'bold'}}>Suppr</button>
-              </div>
-              {lot.est_roue_bonus && lotBonusOuvert === lot.id && (
-                <div style={{background:'#fffbeb',border:'2px solid #f59e0b',borderTop:'none',borderRadius:'0 0 12px 12px',padding:'16px'}}>
-                  <p style={{color:'#92400e',fontSize:'13px',marginBottom:'12px'}}>🎰 Sous-lots de la roue bonus — ajustez les probas selon vos stocks</p>
-                  <div style={{display:'flex',flexWrap:'wrap',gap:'8px',marginBottom:'12px',alignItems:'center'}}>
-                    <input value={newSousLabel} onChange={(e) => setNewSousLabel(e.target.value)} placeholder='Ex: Glace menthe' style={{flex:1,minWidth:'120px',padding:'8px',borderRadius:'8px',border:'1px solid #f59e0b',fontSize:'14px'}}/>
-                    <input type='color' value={newSousCouleur} onChange={(e) => setNewSousCouleur(e.target.value)} style={{width:'40px',height:'36px',borderRadius:'8px',border:'1px solid #e5e7eb',cursor:'pointer'}}/>
-                    <select value={newSousProba} onChange={(e) => setNewSousProba(parseInt(e.target.value))} style={{padding:'8px',borderRadius:'8px',border:'1px solid #f59e0b',fontSize:'14px',background:'white'}}>
-                      {OPTIONS_FREQUENCE.map(o => (
-                        <option key={o.probabilite} value={o.probabilite}>{o.label}</option>
-                      ))}
-                    </select>
-                    <button onClick={() => ajouterSousLot(lot.id)} style={{padding:'8px 16px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f59e0b',color:'white',fontWeight:'bold',fontSize:'14px'}}>Ajouter</button>
-                  </div>
-                  {sousLots.length === 0 && <p style={{color:'#9ca3af',fontSize:'13px'}}>Aucun sous-lot pour l instant</p>}
-                  {sousLots.map((sl) => (
-                    <div key={sl.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'8px',background:'white',borderRadius:'8px',marginBottom:'6px'}}>
-                      <div style={{width:'12px',height:'12px',borderRadius:'50%',background:sl.couleur,flexShrink:0}}></div>
-                      <span style={{flex:1,fontSize:'14px',color:'#1f2937'}}>{sl.label}</span>
-                      <span style={{fontSize:'12px',color:'#d97706'}}>{OPTIONS_FREQUENCE.find(o => o.probabilite === sl.probabilite)?.label || '1 sur '+Math.round(100/sl.probabilite)} — {sl.probabilite}%</span>
-                      <button onClick={() => supprimerSousLot(sl.id, lot.id)} style={{padding:'4px 8px',borderRadius:'6px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'12px'}}>Suppr</button>
+              ))}
+            </div>
+
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:'10px',marginBottom:'16px'}}>
+              {[
+                { label:'Total', value:stats.total, color:'white' },
+                { label:'🍽️ Restaurant', value:stats.restaurant, color:'#f97316' },
+                { label:'🛵 Livraison', value:stats.livraison, color:'#4ade80' },
+                { label:'Cadeaux', value:stats.utilises, color:'#4ade80' },
+                { label:'Expires', value:stats.expires, color:'#f87171' },
+                { label:'Taux', value:(stats.total > 0 ? Math.round(stats.utilises/stats.total*100) : 0)+'%', color:'#f97316' },
+              ].map((s, i) => (
+                <motion.div key={i} initial={{opacity:0,scale:0.9}} animate={{opacity:1,scale:1}} transition={{delay:i*0.05}} style={cardStyle}>
+                  <p style={{color:'rgba(255,255,255,0.4)',fontSize:'12px',margin:'0 0 6px'}}>{s.label}</p>
+                  <p style={{fontSize:'28px',fontWeight:'800',color:s.color,margin:'0'}}>{s.value}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            {pieData.length > 0 && (
+              <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.3}} style={{...cardStyle,marginBottom:'16px',display:'flex',alignItems:'center',gap:'16px'}}>
+                <PieChart width={100} height={100}>
+                  <Pie data={pieData} cx={50} cy={50} innerRadius={30} outerRadius={45} dataKey='value'>
+                    {pieData.map((entry, i) => <Cell key={i} fill={entry.color}/>)}
+                  </Pie>
+                </PieChart>
+                <div style={{flex:1}}>
+                  {pieData.map((d, i) => (
+                    <div key={i} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px'}}>
+                      <div style={{width:'8px',height:'8px',borderRadius:'50%',background:d.color}}/>
+                      <span style={{color:'rgba(255,255,255,0.6)',fontSize:'13px'}}>{d.name} — <strong style={{color:'white'}}>{d.value}</strong></span>
                     </div>
                   ))}
                 </div>
-              )}
+              </motion.div>
+            )}
+
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} transition={{delay:0.4}} style={{...cardStyle,textAlign:'left'}}>
+              <h3 style={{fontSize:'14px',fontWeight:'bold',color:'white',marginBottom:'16px',margin:'0 0 16px'}}>Participations par jour</h3>
+              <GraphiqueArea partData={partData}/>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {onglet === 'lots' && (
+          <motion.div key='lots' initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:20}} style={{...cardStyle,textAlign:'left'}}>
+            <h2 style={{fontSize:'16px',fontWeight:'800',color:'white',marginBottom:'12px'}}>Gestion des lots</h2>
+            {confirmation && <motion.p initial={{opacity:0}} animate={{opacity:1}} style={{color:confirmation.includes('depasse')?'#f87171':'#4ade80',fontWeight:'bold',marginBottom:'12px',background:confirmation.includes('depasse')?'rgba(220,38,38,0.1)':'rgba(22,163,74,0.1)',padding:'10px',borderRadius:'10px'}}>{confirmation}</motion.p>}
+
+            <div style={{background:'rgba(255,255,255,0.04)',borderRadius:'14px',padding:'14px',marginBottom:'16px'}}>
+              <p style={{color:'rgba(255,255,255,0.4)',fontSize:'13px',margin:'0 0 4px'}}>Chance de gagner</p>
+              <p style={{fontSize:'20px',fontWeight:'800',color:totalProbas()>100?'#f87171':'#f97316',margin:'0 0 4px'}}>{totalProbas()}% <span style={{fontSize:'12px',color:'rgba(255,255,255,0.3)',fontWeight:'normal'}}>({probaRestante()}% perdant)</span></p>
+              <p style={{fontSize:'13px',color:'rgba(255,255,255,0.4)',margin:'0 0 10px'}}>soit {totalProbas()>0?Math.round(totalProbas()/10):'?'} client{Math.round(totalProbas()/10)>1?'s':''} sur 10 gagnent</p>
+              <div style={{display:'flex',alignItems:'center',gap:'8px',flexWrap:'wrap'}}>
+                <p style={{color:'rgba(255,255,255,0.4)',fontSize:'12px',margin:'0'}}>Cases perdantes :</p>
+                <select value={config.nb_segments_perdants||1} onChange={async (e) => { const val=parseInt(e.target.value); setConfig({...config,nb_segments_perdants:val}); await supabase.from('config').update({nb_segments_perdants:val}).eq('id',config.id); setConfirmation('Mis a jour !'); setTimeout(()=>setConfirmation(''),2000); }} style={{padding:'6px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.15)',fontSize:'13px',background:'rgba(255,255,255,0.08)',color:'white'}}>
+                  <option value={1}>1 case ({probaRestante()}%)</option>
+                  <option value={2}>2 cases ({Math.floor(probaRestante()/2)}% chacune)</option>
+                  <option value={3}>3 cases ({Math.floor(probaRestante()/3)}% chacune)</option>
+                  <option value={4}>4 cases ({Math.floor(probaRestante()/4)}% chacune)</option>
+                </select>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
-      {onglet === 'codes' && (
-        <div style={{background:'white',borderRadius:'16px',padding:'12px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)',overflowX:'auto'}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px'}}>
-            <h2 style={{fontSize:'18px',fontWeight:'bold',color:'#1f2937'}}>Derniers codes</h2>
-            <button onClick={async () => { if (!confirm('Supprimer les codes expires ?')) return; const expires = codes.filter(c => c.expire_le && new Date(c.expire_le) < new Date() && !c.utilise); for (const c of expires) { await supabase.from('codes').delete().eq('id', c.id); } charger(periode, restaurantId); }} style={{padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fef9c3',color:'#ca8a04',fontSize:'13px',fontWeight:'bold'}}>Suppr expires</button>
-            <button onClick={supprimerTout} style={{padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'13px',fontWeight:'bold'}}>Tout supprimer</button>
-          </div>
-          <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px'}}>
-            <thead>
-              <tr style={{borderBottom:'2px solid #f3f4f6'}}>
-                <th style={{textAlign:'left',padding:'8px',color:'#6b7280',fontSize:'14px'}}>Code</th>
-                <th style={{textAlign:'left',padding:'8px',color:'#6b7280',fontSize:'14px'}}>Lot</th>
-                <th style={{textAlign:'left',padding:'8px',color:'#6b7280',fontSize:'14px'}}>Statut</th>
-                <th style={{textAlign:'left',padding:'8px',color:'#6b7280',fontSize:'14px'}}>Date</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {codes.map((c) => (
-                <tr key={c.id} style={{borderBottom:'1px solid #f3f4f6'}}>
-                  <td style={{padding:'8px 4px',fontWeight:'bold',color:'#f97316',letterSpacing:'1px'}}>{c.code}</td>
-                  <td style={{padding:'8px 4px',color:'#1f2937'}}>{c.lot}</td>
-                  <td style={{padding:'8px 4px'}}>
-                    {c.utilise ? (
-                      <span style={{background:'#dcfce7',color:'#16a34a',padding:'4px 8px',borderRadius:'20px',fontSize:'11px'}}>Utilise</span>
-                    ) : c.expire_le && new Date(c.expire_le) < new Date() ? (
-                      <span style={{background:'#fee2e2',color:'#dc2626',padding:'4px 8px',borderRadius:'20px',fontSize:'11px'}}>Expire</span>
-                    ) : (
-                      <span style={{background:'#fef9c3',color:'#ca8a04',padding:'4px 8px',borderRadius:'20px',fontSize:'11px'}}>Attente</span>
-                    )}
-                  </td>
-                  <td style={{padding:'8px 4px',color:'#6b7280',fontSize:'11px'}}>{new Date(c.cree_le).toLocaleString('fr-FR')}</td>
-                  <td style={{padding:'8px 4px'}}>
-                    <button onClick={() => supprimerCode(c.id)} style={{padding:'6px 10px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#fee2e2',color:'#dc2626',fontSize:'12px',fontWeight:'bold'}}>Suppr</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      {onglet === 'params' && (
-        <div style={{background:'white',borderRadius:'16px',padding:'24px',boxShadow:'0 2px 8px rgba(0,0,0,0.05)'}}>
-          <h2 style={{fontSize:'18px',fontWeight:'bold',color:'#1f2937',marginBottom:'24px'}}>Parametres du restaurant</h2>
-          <div style={{marginBottom:'20px'}}>
-            <label style={{display:'block',color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Nom du restaurant</label>
-            <input value={config.nom} onChange={(e) => setConfig({...config, nom: e.target.value})} style={{width:'100%',padding:'12px',borderRadius:'10px',border:'1px solid #e5e7eb',fontSize:'16px',boxSizing:'border-box'}}/>
-          </div>
-          <div style={{marginBottom:'20px'}}>
-            <label style={{display:'block',color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Lien Google Avis</label>
-            <input value={config.lien_google || ''} onChange={(e) => setConfig({...config, lien_google: e.target.value})} placeholder='https://search.google.com/local/writereview?placeid=...' style={{width:'100%',padding:'12px',borderRadius:'10px',border:'1px solid #e5e7eb',fontSize:'14px',boxSizing:'border-box'}}/>
-            <p style={{color:'#9ca3af',fontSize:'12px',marginTop:'4px'}}>Trouvez votre lien sur Google My Business</p>
-          </div>
-          <div style={{marginBottom:'20px'}}>
-            <label style={{display:'block',color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Mot de passe admin</label>
-            {!config.changeMdp ? (
-              <button onClick={() => setConfig({...config, changeMdp: true})} style={{background:'#f3f4f6',color:'#1f2937',padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',fontSize:'14px',fontWeight:'bold'}}>
-                🔑 Changer mon mot de passe
-              </button>
-            ) : (
-              <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
-                <input type='password' autoComplete='new-password' value={config.nouveau_mdp || ''} onChange={(e) => setConfig({...config, nouveau_mdp: e.target.value})} placeholder='Nouveau mot de passe' style={{width:'100%',padding:'12px',borderRadius:'10px',border:'1px solid #e5e7eb',fontSize:'14px',boxSizing:'border-box'}}/>
-                <input type='password' autoComplete='new-password' value={config.confirmer_mdp || ''} onChange={(e) => setConfig({...config, confirmer_mdp: e.target.value})} placeholder='Confirmer le mot de passe' style={{width:'100%',padding:'12px',borderRadius:'10px',border:'1px solid #e5e7eb',fontSize:'14px',boxSizing:'border-box'}}/>
-                {config.nouveau_mdp && config.confirmer_mdp && config.nouveau_mdp !== config.confirmer_mdp && (
-                  <p style={{color:'#dc2626',fontSize:'13px',margin:'0'}}>Les mots de passe ne correspondent pas</p>
-                )}
-                <button onClick={() => setConfig({...config, changeMdp: false, nouveau_mdp: '', confirmer_mdp: ''})} style={{background:'#f3f4f6',color:'#6b7280',padding:'8px',borderRadius:'8px',border:'none',cursor:'pointer',fontSize:'13px'}}>
-                  Annuler
-                </button>
+
+            <div style={{display:'flex',flexWrap:'wrap',gap:'8px',padding:'14px',background:'rgba(255,255,255,0.04)',borderRadius:'14px',marginBottom:'16px',alignItems:'center'}}>
+              <input value={newLabel} onChange={(e)=>setNewLabel(e.target.value)} placeholder='Nom du lot' style={{flex:1,minWidth:'120px',padding:'10px',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.15)',fontSize:'14px',background:'rgba(255,255,255,0.08)',color:'white',outline:'none'}}/>
+              <input type='color' value={newCouleur} onChange={(e)=>setNewCouleur(e.target.value)} style={{width:'40px',height:'40px',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',background:'transparent'}}/>
+              {!newEstPerdant && (
+                <select value={OPTIONS_FREQUENCE.find(o=>o.probabilite===newFrequence)?newFrequence:'custom'} onChange={(e)=>{if(e.target.value!=='custom')setNewFrequence(parseInt(e.target.value));}} style={{padding:'10px',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.15)',fontSize:'13px',background:'rgba(255,255,255,0.08)',color:'white'}}>
+                  {OPTIONS_FREQUENCE.map(o=><option key={o.probabilite} value={o.probabilite}>{o.label}</option>)}
+                  <option value='custom'>Personnaliser...</option>
+                </select>
+              )}
+              <label style={{display:'flex',alignItems:'center',gap:'6px',fontSize:'13px',color:'#fbbf24',cursor:'pointer',fontWeight:'bold'}}>
+                <input type='checkbox' checked={newEstRoueBonus} onChange={(e)=>{setNewEstRoueBonus(e.target.checked);if(e.target.checked)setNewEstPerdant(false);}}/>
+                🎰 Bonus
+              </label>
+              <motion.button onClick={ajouterLot} whileTap={{scale:0.95}} style={{padding:'10px 16px',borderRadius:'10px',border:'none',cursor:'pointer',background:'linear-gradient(135deg,#f97316,#ea580c)',color:'white',fontWeight:'800',fontSize:'14px'}}>
+                Ajouter
+              </motion.button>
+            </div>
+
+            {newEstRoueBonus && (
+              <div style={{background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.3)',borderRadius:'12px',padding:'14px',marginBottom:'16px'}}>
+                <p style={{color:'#fbbf24',fontSize:'13px',margin:'0'}}>🎰 <strong>Roue bonus</strong> — Declenche une 2eme roue surprise. Ideal pour ecouler vos stocks !</p>
               </div>
             )}
-          </div>
-          <div style={{marginBottom:'24px'}}>
-            <label style={{display:'block',color:'#6b7280',fontSize:'14px',marginBottom:'8px'}}>Couleur principale</label>
-            <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
-              <input type='color' value={config.couleur_principale} onChange={(e) => setConfig({...config, couleur_principale: e.target.value})} style={{width:'60px',height:'40px',borderRadius:'8px',border:'1px solid #e5e7eb',cursor:'pointer'}}/>
-              <p style={{color:'#6b7280',fontSize:'13px'}}>Couleur des boutons et textes importants sur le site client</p>
+
+            {lots.map((lot) => (
+              <div key={lot.id} style={{marginBottom:'8px'}}>
+                <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:'8px',padding:'12px',borderRadius:'14px',border:lot.est_roue_bonus?'1px solid rgba(245,158,11,0.4)':'1px solid rgba(255,255,255,0.08)',background:lot.est_roue_bonus?'rgba(245,158,11,0.06)':'rgba(255,255,255,0.04)'}}>
+                  <div style={{width:'14px',height:'14px',borderRadius:'50%',background:lot.couleur,flexShrink:0,boxShadow:'0 0 6px '+lot.couleur}}/>
+                  {lot.est_roue_bonus && <span style={{background:'rgba(245,158,11,0.2)',color:'#fbbf24',fontSize:'10px',fontWeight:'bold',padding:'2px 8px',borderRadius:'20px',border:'1px solid rgba(245,158,11,0.3)'}}>🎰 BONUS</span>}
+                  <input defaultValue={lot.label} onBlur={(e)=>modifierLabel(lot.id,e.target.value)} style={{flex:1,padding:'8px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.1)',fontSize:'14px',background:'rgba(255,255,255,0.06)',color:'white',outline:'none'}}/>
+                  {lot.est_perdant ? (
+                    <span style={{color:'rgba(255,255,255,0.3)',fontSize:'12px',fontStyle:'italic'}}>Perdant</span>
+                  ) : (
+                    <div style={{display:'flex',gap:'6px',alignItems:'center'}}>
+                      <select value={OPTIONS_FREQUENCE.find(o=>o.probabilite===lot.probabilite)?lot.probabilite:'custom'} onChange={(e)=>{if(e.target.value!=='custom')modifierProba(lot.id,parseInt(e.target.value));}} style={{padding:'6px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.1)',fontSize:'12px',background:'rgba(255,255,255,0.06)',color:'white'}}>
+                        {OPTIONS_FREQUENCE.map(o=><option key={o.probabilite} value={o.probabilite}>{o.label}</option>)}
+                        <option value='custom'>Personnaliser...</option>
+                      </select>
+                      <span style={{color:lot.est_roue_bonus?'#fbbf24':'#f97316',fontSize:'12px',fontWeight:'bold'}}>{lot.probabilite}%</span>
+                    </div>
+                  )}
+                  <button onClick={()=>toggleActif(lot.id,lot.actif)} style={{padding:'6px 10px',borderRadius:'8px',border:'none',cursor:'pointer',background:lot.actif?'rgba(22,163,74,0.15)':'rgba(220,38,38,0.15)',color:lot.actif?'#4ade80':'#f87171',fontSize:'12px',fontWeight:'bold'}}>
+                    {lot.actif?'Actif':'Inactif'}
+                  </button>
+                  {lot.est_roue_bonus && (
+                    <button onClick={()=>{if(lotBonusOuvert===lot.id){setLotBonusOuvert(null);}else{setLotBonusOuvert(lot.id);chargerSousLots(lot.id);}}} style={{padding:'6px 10px',borderRadius:'8px',border:'none',cursor:'pointer',background:'rgba(245,158,11,0.1)',color:'#fbbf24',fontSize:'12px',fontWeight:'bold'}}>
+                      {lotBonusOuvert===lot.id?'Fermer':'Sous-lots'}
+                    </button>
+                  )}
+                  <button onClick={async()=>{if(!confirm('Supprimer ?'))return;await supabase.from('lots').delete().eq('id',lot.id);charger(periode,restaurantId);}} style={{padding:'6px 10px',borderRadius:'8px',border:'none',cursor:'pointer',background:'rgba(220,38,38,0.1)',color:'#f87171',fontSize:'12px',fontWeight:'bold'}}>
+                    Suppr
+                  </button>
+                </div>
+
+                <AnimatePresence>
+                  {lot.est_roue_bonus && lotBonusOuvert===lot.id && (
+                    <motion.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}} style={{overflow:'hidden'}}>
+                      <div style={{background:'rgba(245,158,11,0.06)',border:'1px solid rgba(245,158,11,0.2)',borderTop:'none',borderRadius:'0 0 14px 14px',padding:'16px'}}>
+                        <p style={{color:'#fbbf24',fontSize:'13px',marginBottom:'12px'}}>🎰 Sous-lots — ajustez selon vos stocks</p>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:'8px',marginBottom:'12px',alignItems:'center'}}>
+                          <input value={newSousLabel} onChange={(e)=>setNewSousLabel(e.target.value)} placeholder='Ex: Glace menthe' style={{flex:1,minWidth:'120px',padding:'8px',borderRadius:'8px',border:'1px solid rgba(245,158,11,0.3)',fontSize:'14px',background:'rgba(255,255,255,0.06)',color:'white',outline:'none'}}/>
+                          <input type='color' value={newSousCouleur} onChange={(e)=>setNewSousCouleur(e.target.value)} style={{width:'36px',height:'36px',borderRadius:'8px',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',background:'transparent'}}/>
+                          <select value={newSousProba} onChange={(e)=>setNewSousProba(parseInt(e.target.value))} style={{padding:'8px',borderRadius:'8px',border:'1px solid rgba(245,158,11,0.3)',fontSize:'13px',background:'rgba(255,255,255,0.06)',color:'white'}}>
+                            {OPTIONS_FREQUENCE.map(o=><option key={o.probabilite} value={o.probabilite}>{o.label}</option>)}
+                          </select>
+                          <button onClick={()=>ajouterSousLot(lot.id)} style={{padding:'8px 14px',borderRadius:'8px',border:'none',cursor:'pointer',background:'#f59e0b',color:'white',fontWeight:'bold',fontSize:'13px'}}>+</button>
+                        </div>
+                        {sousLots.length===0 && <p style={{color:'rgba(255,255,255,0.3)',fontSize:'13px'}}>Aucun sous-lot</p>}
+                        {sousLots.map(sl=>(
+                          <div key={sl.id} style={{display:'flex',alignItems:'center',gap:'8px',padding:'8px',background:'rgba(255,255,255,0.04)',borderRadius:'8px',marginBottom:'6px'}}>
+                            <div style={{width:'10px',height:'10px',borderRadius:'50%',background:sl.couleur}}/>
+                            <span style={{flex:1,fontSize:'13px',color:'rgba(255,255,255,0.8)'}}>{sl.label}</span>
+                            <span style={{fontSize:'11px',color:'#fbbf24'}}>{OPTIONS_FREQUENCE.find(o=>o.probabilite===sl.probabilite)?.label||'1 sur '+Math.round(100/sl.probabilite)} — {sl.probabilite}%</span>
+                            <button onClick={()=>supprimerSousLot(sl.id,lot.id)} style={{padding:'4px 8px',borderRadius:'6px',border:'none',cursor:'pointer',background:'rgba(220,38,38,0.1)',color:'#f87171',fontSize:'12px'}}>✕</button>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </motion.div>
+        )}
+
+        {onglet === 'codes' && (
+          <motion.div key='codes' initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:20}} style={{...cardStyle,textAlign:'left',overflowX:'auto'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px',flexWrap:'wrap',gap:'8px'}}>
+              <h2 style={{fontSize:'16px',fontWeight:'800',color:'white',margin:'0'}}>Derniers codes</h2>
+              <div style={{display:'flex',gap:'8px'}}>
+                <button onClick={async()=>{if(!confirm('Supprimer les codes expires ?'))return;const exp=codes.filter(c=>c.expire_le&&new Date(c.expire_le)<new Date()&&!c.utilise);for(const c of exp){await supabase.from('codes').delete().eq('id',c.id);}charger(periode,restaurantId);}} style={{padding:'8px 12px',borderRadius:'8px',border:'none',cursor:'pointer',background:'rgba(202,138,4,0.1)',color:'#fbbf24',fontSize:'12px',fontWeight:'bold'}}>Suppr expires</button>
+                <button onClick={supprimerTout} style={{padding:'8px 12px',borderRadius:'8px',border:'none',cursor:'pointer',background:'rgba(220,38,38,0.1)',color:'#f87171',fontSize:'12px',fontWeight:'bold'}}>Tout suppr</button>
+              </div>
             </div>
-          </div>
-          <button onClick={async () => {
-            const updates: any = { nom: config.nom, couleur_principale: config.couleur_principale, lien_google: config.lien_google };
-            if (config.nouveau_mdp && config.nouveau_mdp === config.confirmer_mdp) {
-              const bcrypt = await import('bcryptjs');
-              updates.mot_de_passe = await bcrypt.hash(config.nouveau_mdp, 10);
-            }
-            await supabase.from('config').update(updates).eq('id', config.id);
-            alert('Parametres sauvegardes !');
-          }} style={{background:'#f97316',color:'white',fontWeight:'bold',padding:'12px 24px',borderRadius:'12px',border:'none',cursor:'pointer',fontSize:'16px'}}>
-            Sauvegarder
-          </button>
-          <div style={{marginTop:'32px',paddingTop:'24px',borderTop:'1px solid #f3f4f6'}}>
-            <label style={{display:'block',color:'#6b7280',fontSize:'14px',marginBottom:'16px',fontWeight:'bold'}}>QR Codes</label>
-            <div style={{background:'#f9fafb',borderRadius:'12px',padding:'16px',marginBottom:'12px'}}>
-              <p style={{color:'#1f2937',fontWeight:'bold',fontSize:'14px',marginBottom:'4px'}}>🍽️ QR Code Restaurant</p>
-              <p style={{color:'#9ca3af',fontSize:'12px',marginBottom:'12px'}}>A poser sur les tables — code cadeau valable 1 heure</p>
-              <button onClick={() => window.open('/'+slug+'/chevalet', '_blank')} style={{background:'#1f2937',color:'white',fontWeight:'bold',padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',fontSize:'14px'}}>
-                Voir et imprimer le chevalet
-              </button>
+            <table style={{width:'100%',borderCollapse:'collapse',fontSize:'12px'}}>
+              <thead>
+                <tr style={{borderBottom:'1px solid rgba(255,255,255,0.1)'}}>
+                  {['Code','Lot','Statut','Date',''].map((h,i)=><th key={i} style={{textAlign:'left',padding:'8px',color:'rgba(255,255,255,0.3)',fontSize:'13px'}}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {codes.map(c=>(
+                  <tr key={c.id} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                    <td style={{padding:'10px 8px',fontWeight:'bold',color:'#f97316',letterSpacing:'1px'}}>{c.code}</td>
+                    <td style={{padding:'10px 8px',color:'rgba(255,255,255,0.7)'}}>{c.lot}</td>
+                    <td style={{padding:'10px 8px'}}>
+                      {c.utilise?<span style={{background:'rgba(22,163,74,0.15)',color:'#4ade80',padding:'3px 8px',borderRadius:'20px',fontSize:'11px'}}>Utilise</span>:c.expire_le&&new Date(c.expire_le)<new Date()?<span style={{background:'rgba(220,38,38,0.15)',color:'#f87171',padding:'3px 8px',borderRadius:'20px',fontSize:'11px'}}>Expire</span>:<span style={{background:'rgba(202,138,4,0.15)',color:'#fbbf24',padding:'3px 8px',borderRadius:'20px',fontSize:'11px'}}>Attente</span>}
+                    </td>
+                    <td style={{padding:'10px 8px',color:'rgba(255,255,255,0.3)',fontSize:'11px'}}>{new Date(c.cree_le).toLocaleString('fr-FR')}</td>
+                    <td style={{padding:'10px 8px'}}>
+                      <button onClick={()=>supprimerCode(c.id)} style={{padding:'4px 8px',borderRadius:'6px',border:'none',cursor:'pointer',background:'rgba(220,38,38,0.1)',color:'#f87171',fontSize:'11px'}}>✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
+
+        {onglet === 'params' && (
+          <motion.div key='params' initial={{opacity:0,x:-20}} animate={{opacity:1,x:0}} exit={{opacity:0,x:20}} style={{...cardStyle,textAlign:'left'}}>
+            <h2 style={{fontSize:'16px',fontWeight:'800',color:'white',marginBottom:'20px'}}>Parametres</h2>
+
+            {[
+              {label:'Nom du restaurant',field:'nom',type:'text',placeholder:''},
+              {label:'Lien Google Avis',field:'lien_google',type:'text',placeholder:'https://search.google.com/local/writereview?placeid=...'},
+            ].map(f=>(
+              <div key={f.field} style={{marginBottom:'16px'}}>
+                <label style={{display:'block',color:'rgba(255,255,255,0.4)',fontSize:'13px',marginBottom:'6px'}}>{f.label}</label>
+                <input value={config[f.field]||''} onChange={(e)=>setConfig({...config,[f.field]:e.target.value})} placeholder={f.placeholder} style={{width:'100%',padding:'12px',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.15)',fontSize:'14px',boxSizing:'border-box',background:'rgba(255,255,255,0.06)',color:'white',outline:'none'}}/>
+              </div>
+            ))}
+
+            <div style={{marginBottom:'16px'}}>
+              <label style={{display:'block',color:'rgba(255,255,255,0.4)',fontSize:'13px',marginBottom:'6px'}}>Mot de passe</label>
+              {!config.changeMdp ? (
+                <button onClick={()=>setConfig({...config,changeMdp:true})} style={{background:'rgba(255,255,255,0.06)',color:'white',padding:'10px 20px',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',fontSize:'14px',fontWeight:'bold'}}>
+                  🔑 Changer mon mot de passe
+                </button>
+              ) : (
+                <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+                  <input type='password' autoComplete='new-password' value={config.nouveau_mdp||''} onChange={(e)=>setConfig({...config,nouveau_mdp:e.target.value})} placeholder='Nouveau mot de passe' style={{width:'100%',padding:'12px',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.15)',fontSize:'14px',boxSizing:'border-box',background:'rgba(255,255,255,0.06)',color:'white',outline:'none'}}/>
+                  <input type='password' autoComplete='new-password' value={config.confirmer_mdp||''} onChange={(e)=>setConfig({...config,confirmer_mdp:e.target.value})} placeholder='Confirmer' style={{width:'100%',padding:'12px',borderRadius:'12px',border:'1px solid rgba(255,255,255,0.15)',fontSize:'14px',boxSizing:'border-box',background:'rgba(255,255,255,0.06)',color:'white',outline:'none'}}/>
+                  {config.nouveau_mdp&&config.confirmer_mdp&&config.nouveau_mdp!==config.confirmer_mdp&&<p style={{color:'#f87171',fontSize:'13px',margin:'0'}}>Les mots de passe ne correspondent pas</p>}
+                  <button onClick={()=>setConfig({...config,changeMdp:false,nouveau_mdp:'',confirmer_mdp:''})} style={{background:'rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.5)',padding:'8px',borderRadius:'10px',border:'none',cursor:'pointer',fontSize:'13px'}}>Annuler</button>
+                </div>
+              )}
             </div>
-            <div style={{background:'#f0fdf4',borderRadius:'12px',padding:'16px'}}>
-              <p style={{color:'#1f2937',fontWeight:'bold',fontSize:'14px',marginBottom:'4px'}}>🛵 QR Code Livraison</p>
-              <p style={{color:'#9ca3af',fontSize:'12px',marginBottom:'12px'}}>A glisser dans les sacs — code cadeau valable 7 jours</p>
-              <button onClick={() => window.open('/'+slug+'/chevalet?mode=livraison', '_blank')} style={{background:'#16a34a',color:'white',fontWeight:'bold',padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',fontSize:'14px'}}>
-                Voir et imprimer le chevalet livraison
-              </button>
+
+            <div style={{marginBottom:'20px'}}>
+              <label style={{display:'block',color:'rgba(255,255,255,0.4)',fontSize:'13px',marginBottom:'6px'}}>Couleur principale</label>
+              <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                <input type='color' value={config.couleur_principale} onChange={(e)=>setConfig({...config,couleur_principale:e.target.value})} style={{width:'56px',height:'40px',borderRadius:'10px',border:'1px solid rgba(255,255,255,0.15)',cursor:'pointer',background:'transparent'}}/>
+                <p style={{color:'rgba(255,255,255,0.3)',fontSize:'13px',margin:'0'}}>Couleur des boutons sur le site client</p>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+
+            <motion.button whileTap={{scale:0.97}} onClick={async()=>{
+              const updates:any={nom:config.nom,couleur_principale:config.couleur_principale,lien_google:config.lien_google};
+              if(config.nouveau_mdp&&config.nouveau_mdp===config.confirmer_mdp){const bcrypt=await import('bcryptjs');updates.mot_de_passe=await bcrypt.hash(config.nouveau_mdp,10);}
+              await supabase.from('config').update(updates).eq('id',config.id);
+              setConfirmation('Parametres sauvegardes !'); setTimeout(()=>setConfirmation(''),2000);
+            }} style={{background:'linear-gradient(135deg,#f97316,#ea580c)',color:'white',fontWeight:'800',padding:'14px 24px',borderRadius:'14px',border:'none',cursor:'pointer',fontSize:'16px',width:'100%'}}>
+              Sauvegarder
+            </motion.button>
+
+            {confirmation && <motion.p initial={{opacity:0}} animate={{opacity:1}} style={{color:'#4ade80',textAlign:'center',marginTop:'12px',fontWeight:'bold'}}>{confirmation}</motion.p>}
+
+            <div style={{marginTop:'24px',paddingTop:'20px',borderTop:'1px solid rgba(255,255,255,0.08)'}}>
+              <label style={{display:'block',color:'rgba(255,255,255,0.4)',fontSize:'13px',marginBottom:'14px',fontWeight:'bold'}}>QR Codes</label>
+              <div style={{background:'rgba(255,255,255,0.04)',borderRadius:'14px',padding:'16px',marginBottom:'10px'}}>
+                <p style={{color:'white',fontWeight:'bold',fontSize:'14px',marginBottom:'4px'}}>🍽️ QR Code Restaurant</p>
+                <p style={{color:'rgba(255,255,255,0.3)',fontSize:'12px',marginBottom:'12px'}}>A poser sur les tables — code valable 1 heure</p>
+                <button onClick={()=>window.open('/'+slug+'/chevalet','_blank')} style={{background:'rgba(255,255,255,0.1)',color:'white',fontWeight:'bold',padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',fontSize:'14px'}}>
+                  Voir et imprimer
+                </button>
+              </div>
+              <div style={{background:'rgba(22,163,74,0.06)',borderRadius:'14px',padding:'16px',border:'1px solid rgba(22,163,74,0.15)'}}>
+                <p style={{color:'white',fontWeight:'bold',fontSize:'14px',marginBottom:'4px'}}>🛵 QR Code Livraison</p>
+                <p style={{color:'rgba(255,255,255,0.3)',fontSize:'12px',marginBottom:'12px'}}>A glisser dans les sacs — code valable 7 jours</p>
+                <button onClick={()=>window.open('/'+slug+'/chevalet?mode=livraison','_blank')} style={{background:'rgba(22,163,74,0.2)',color:'#4ade80',fontWeight:'bold',padding:'10px 20px',borderRadius:'10px',border:'none',cursor:'pointer',fontSize:'14px'}}>
+                  Voir et imprimer
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{textAlign:'center',padding:'24px',marginTop:'16px'}}>
-        <p style={{color:'#9ca3af',fontSize:'12px'}}>🎡 Spinly — Support : topicrolic@gmail.com</p>
+        <p style={{color:'rgba(255,255,255,0.15)',fontSize:'12px'}}>🎡 Spinly — Support : topicrolic@gmail.com</p>
       </div>
     </div>
   );
